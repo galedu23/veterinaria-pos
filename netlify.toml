@@ -1,0 +1,25 @@
+# ============================================================
+# netlify.toml — Configuración de despliegue en Netlify.
+#
+# QUÉ hace: le dice a Netlify cómo construir y publicar la app.
+# El plugin @netlify/plugin-nextjs es OBLIGATORIO para Next.js con
+# App Router: convierte las rutas dinámicas (/mascotas/[id]) en
+# funciones serverless — sin él solo funcionarían las páginas fijas.
+# Netlify instala el plugin automáticamente al leer este archivo.
+# ============================================================
+
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  # Misma versión de Node que usamos en desarrollo local
+  NODE_VERSION = "22"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+# TODO al conectar Supabase: agregar las variables de entorno en
+# Netlify (Site settings -> Environment variables), NUNCA aquí:
+#   NEXT_PUBLIC_SUPABASE_URL
+#   NEXT_PUBLIC_SUPABASE_ANON_KEY

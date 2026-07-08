@@ -1,0 +1,19 @@
+# Dependencias y caché de build
+node_modules/
+.next/
+out/
+
+# Variables de entorno con llaves secretas (NUNCA subir a Git)
+.env.local
+.env*.local
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Netlify (caché local del CLI)
+.netlify/
