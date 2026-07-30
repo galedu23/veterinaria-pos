@@ -599,5 +599,66 @@ create policy "empleados_todo" on public.plantillas_documento for all to authent
 -- al conectar Supabase. Deben ser validadas por el MVZ responsable
 -- antes de usarse con clientes reales.
 
+-- ------------------------------------------------------------
+-- 16) PORTAL DEL CLIENTE (página pública /portal/{token})
+-- ------------------------------------------------------------
+
+-- Token del enlace personal. UNIQUE para poder buscar por él, y
+-- aleatorio para que nadie adivine el enlace de otro cliente.
+alter table public.clientes add column token_portal text unique
+  default encode(gen_random_bytes(15), 'hex');
+update public.clientes set token_portal = encode(gen_random_bytes(15), 'hex')
+  where token_portal is null;
+alter table public.clientes alter column token_portal set not null;
+
+-- La página del portal NO tiene sesión iniciada, así que no puede leer
+-- las tablas (RLS solo permite a `authenticated`). Se expone mediante
+-- esta función SECURITY DEFINER, que devuelve ÚNICAMENTE los datos del
+-- cliente dueño del token. Así el portal nunca consulta tablas directo.
+create or replace function public.portal_por_token(p_token text)
+returns jsonb
+language plpgsql security definer set search_path = public
+as $$
+declare
+  v_cliente public.clientes;
+  v_resultado jsonb;
+begin
+  select * into v_cliente from public.clientes where token_portal = p_token;
+  if not found then
+    return null; -- enlace inválido o revocado
+  end if;
+
+  select jsonb_build_object(
+    'cliente', jsonb_build_object(
+      'nombre', v_cliente.nombre,
+      'apellidos', v_cliente.apellidos,
+      'telefono', v_cliente.telefono
+    ),
+    'mascotas', coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'id', m.id,
+        'nombre', m.nombre,
+        'sexo', m.sexo,
+        'fechaNacimiento', m.fecha_nacimiento,
+        'fotoUrl', m.foto_url,
+        'especie', (select nombre from public.especies where id = m.especie_id),
+        'raza', (select nombre from public.razas where id = m.raza_id)
+      ))
+      from public.mascotas m where m.cliente_id = v_cliente.id
+    ), '[]'::jsonb)
+  ) into v_resultado;
+
+  return v_resultado;
+end;
+$$;
+
+-- Permitimos ejecutarla SIN sesión (rol anon): es la única puerta
+-- pública, y solo entrega lo que corresponde a ese token.
+grant execute on function public.portal_por_token(text) to anon;
+
+-- NOTA: la función devuelve la estructura base; al migrar hay que
+-- completarla con vacunas, visitas y medicamentos igual que hace
+-- getPortalPorToken() en services/db.ts.
+
 -- NOTA: los clientes/mascotas/productos de prueba NO se siembran aquí;
 -- captúralos desde la propia app para validar los formularios reales.

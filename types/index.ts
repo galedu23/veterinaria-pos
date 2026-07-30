@@ -25,6 +25,62 @@ export interface Cliente {
   email?: string;
   direccion?: string;
   creadoEn: string; // fecha ISO
+  /**
+   * Token del PORTAL DEL CLIENTE: la parte secreta del enlace
+   * /portal/{token} que se le comparte por WhatsApp.
+   * POR QUÉ un token y no el id: el id (`c-1`) es adivinable — con él
+   * cualquiera vería el expediente de otro cliente cambiando el número.
+   * El token es largo y aleatorio, y puede regenerarse para revocar
+   * el acceso de un enlace que se compartió por error.
+   */
+  tokenPortal: string;
+}
+
+/**
+ * RecordatorioPortal: un aviso para el dueño ("la vacuna de Lobo vence
+ * en 5 días", "cita el 20 de julio"). Es lo PRIMERO que ve en el portal.
+ * `urgencia` decide el color del aviso: vencido (rojo), próximo (ámbar),
+ * programado (azul).
+ */
+export interface RecordatorioPortal {
+  tipo: "vacuna" | "cita";
+  nombreMascota: string;
+  descripcion: string;
+  fecha: string;
+  diasRestantes: number; // negativo = ya venció
+  urgencia: "vencido" | "proximo" | "programado";
+}
+
+/**
+ * MascotaPortal: la ficha de una mascota tal como la ve su dueño.
+ * Es una versión REDUCIDA del expediente: se omiten las notas internas
+ * del veterinario y los identificadores del sistema.
+ */
+export interface MascotaPortal {
+  id: string;
+  nombre: string;
+  especie: string;
+  raza: string;
+  sexo: string;
+  edad: string;
+  fotoUrl?: string;
+  proximaConsulta?: string;
+  vacunas: Array<{ nombre: string; fechaAplicacion: string; proximaDosis?: string }>;
+  visitas: Array<{
+    fecha: string;
+    servicio: string;
+    diagnostico: string;
+    tratamiento?: string;
+    pesoKg?: number;
+  }>;
+  medicamentos: Array<{ fecha: string; nombre: string; indicaciones: string }>;
+}
+
+/** DatosPortal: todo lo que necesita pintar la página pública del cliente */
+export interface DatosPortal {
+  cliente: { nombre: string; apellidos: string; telefono: string };
+  recordatorios: RecordatorioPortal[];
+  mascotas: MascotaPortal[];
 }
 
 /** Especie de mascota (Perro, Gato, etc.) */

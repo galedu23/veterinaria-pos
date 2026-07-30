@@ -19,6 +19,7 @@ import { ArrowLeft, Phone, Mail, MapPin, PawPrint, Loader2, CalendarDays } from 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EnlacePortal } from "@/components/clientes/enlace-portal";
 import { formatoFecha } from "@/lib/utils";
 import {
   getClientePorId, getMascotasDeCliente, getEspecies, getRazas,
@@ -35,23 +36,29 @@ export default function PaginaPerfilCliente() {
   const [razas, setRazas] = React.useState<Raza[]>([]);
   const [cargando, setCargando] = React.useState(true);
 
-  // Cargamos el cliente, sus mascotas y los catálogos en paralelo
-  React.useEffect(() => {
-    (async () => {
-      setCargando(true);
-      const [cli, masc, esp, raz] = await Promise.all([
-        getClientePorId(params.id),
-        getMascotasDeCliente(params.id),
-        getEspecies(),
-        getRazas(),
-      ]);
-      setCliente(cli ?? null);
-      setMascotas(masc);
-      setEspecies(esp);
-      setRazas(raz);
-      setCargando(false);
-    })();
+  /**
+   * cargarPerfil: trae el cliente, sus mascotas y los catálogos.
+   * Es un useCallback para poder REUSARLO cuando se regenera el enlace
+   * del portal (necesitamos volver a leer el token nuevo).
+   */
+  const cargarPerfil = React.useCallback(async () => {
+    setCargando(true);
+    const [cli, masc, esp, raz] = await Promise.all([
+      getClientePorId(params.id),
+      getMascotasDeCliente(params.id),
+      getEspecies(),
+      getRazas(),
+    ]);
+    setCliente(cli ?? null);
+    setMascotas(masc);
+    setEspecies(esp);
+    setRazas(raz);
+    setCargando(false);
   }, [params.id]);
+
+  React.useEffect(() => {
+    cargarPerfil();
+  }, [cargarPerfil]);
 
   /** Helpers para traducir ids de catálogo a nombres visibles */
   const nombreEspecie = (id: string) => especies.find((e) => e.id === id)?.nombre ?? "—";
@@ -86,8 +93,10 @@ export default function PaginaPerfilCliente() {
 
       {/* Datos de contacto del dueño */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0">
           <CardTitle className="text-xl">{cliente.nombre} {cliente.apellidos}</CardTitle>
+          {/* Enlace del portal: copiar o enviar por WhatsApp */}
+          <EnlacePortal cliente={cliente} onTokenRegenerado={cargarPerfil} />
         </CardHeader>
         <CardContent className="grid gap-2 text-sm sm:grid-cols-2">
           <p className="flex items-center gap-2">

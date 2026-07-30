@@ -13,9 +13,9 @@ import type {
   Cliente, Especie, Raza, Mascota, Consulta, Receta, Vacuna,
   Categoria, Producto, Venta, Compra, DashboardStats, ResultadoBusqueda,
   DocumentoMedico, CorteCaja, MetodoPago, DesglosePago, Antecedentes, Servicio,
-  Veterinario, PlantillaDocumento,
+  Veterinario, PlantillaDocumento, DatosPortal, MascotaPortal, RecordatorioPortal,
 } from "@/types";
-import { diasHasta } from "@/lib/utils";
+import { diasHasta, calcularEdad } from "@/lib/utils";
 
 // ------------------------------------------------------------
 // DATOS DE PRUEBA (simulan las tablas de la base de datos)
@@ -39,11 +39,11 @@ const razas: Raza[] = [
 ];
 
 const clientes: Cliente[] = [
-  { id: "c-1", nombre: "María", apellidos: "García López", telefono: "555-101-2020", email: "maria@mail.com", direccion: "Av. Reforma 12", creadoEn: "2025-01-15" },
-  { id: "c-2", nombre: "Juan", apellidos: "Pérez Soto", telefono: "555-303-4040", email: "juan@mail.com", direccion: "Calle 5 de Mayo 8", creadoEn: "2025-02-10" },
-  { id: "c-3", nombre: "Ana", apellidos: "Ramírez Cruz", telefono: "555-505-6060", creadoEn: "2025-03-22" },
-  { id: "c-4", nombre: "Pedro", apellidos: "Hernández Díaz", telefono: "555-707-8080", email: "pedro@mail.com", creadoEn: "2025-05-01" },
-  { id: "c-5", nombre: "Lucía", apellidos: "Torres Vega", telefono: "555-909-1010", creadoEn: "2025-06-12" },
+  { id: "c-1", nombre: "María", apellidos: "García López", telefono: "555-101-2020", email: "maria@mail.com", direccion: "Av. Reforma 12", creadoEn: "2025-01-15", tokenPortal: "portal1k7p2x9m" },
+  { id: "c-2", nombre: "Juan", apellidos: "Pérez Soto", telefono: "555-303-4040", email: "juan@mail.com", direccion: "Calle 5 de Mayo 8", creadoEn: "2025-02-10", tokenPortal: "portal2k7p2x9m" },
+  { id: "c-3", nombre: "Ana", apellidos: "Ramírez Cruz", telefono: "555-505-6060", creadoEn: "2025-03-22", tokenPortal: "portal3k7p2x9m" },
+  { id: "c-4", nombre: "Pedro", apellidos: "Hernández Díaz", telefono: "555-707-8080", email: "pedro@mail.com", creadoEn: "2025-05-01", tokenPortal: "portal4k7p2x9m" },
+  { id: "c-5", nombre: "Lucía", apellidos: "Torres Vega", telefono: "555-909-1010", creadoEn: "2025-06-12", tokenPortal: "portal5k7p2x9m" },
 ];
 
 const mascotas: Mascota[] = [
@@ -62,7 +62,7 @@ const consultas: Consulta[] = [
     tratamiento: "Dieta blanda 3 días", pesoKg: 32.4, temperaturaC: 38.9,
     notas: "Revisar en una semana si persiste",
     tipoServicio: "Consulta general", condicionCorporal: 5,
-    proximaConsulta: "2026-07-01", progreso: "Primera visita por este cuadro",
+    progreso: "Primera visita por este cuadro",
     exploracion: {
       fc: "110 lpm", fr: "22 rpm", pulsoFemoral: "Fuerte y simétrico",
       deshidratacionPct: "5%", mucosas: "Rosadas, ligeramente secas", tllc: "<2 s",
@@ -76,6 +76,7 @@ const consultas: Consulta[] = [
     motivo: "Revisión de seguimiento", diagnostico: "Recuperado",
     pesoKg: 33.0, temperaturaC: 38.5,
     tipoServicio: "Seguimiento", condicionCorporal: 5,
+    proximaConsulta: fechaHace(-25), // dentro de 25 días (cita programada)
     progreso: "Evolución favorable, alta del cuadro digestivo",
     exploracion: { fc: "105 lpm", fr: "20 rpm", mucosas: "Rosadas y húmedas", tllc: "<2 s" },
   },
@@ -84,7 +85,8 @@ const consultas: Consulta[] = [
     motivo: "Estornudos frecuentes", diagnostico: "Rinotraqueitis felina",
     tratamiento: "Antibiótico + antiviral", pesoKg: 4.1, temperaturaC: 39.4,
     tipoServicio: "Consulta general", condicionCorporal: 4,
-    proximaConsulta: "2026-07-09", progreso: "Inicio de tratamiento",
+    proximaConsulta: fechaHace(-6), // dentro de 6 días (cita próxima)
+    progreso: "Inicio de tratamiento",
     exploracion: {
       fc: "180 lpm", fr: "32 rpm", mucosas: "Congestionadas",
       cabeza: "Secreción nasal serosa", sistemaRespiratorio: "Estornudos, sin estertores",
@@ -95,7 +97,8 @@ const consultas: Consulta[] = [
     motivo: "Cojea de pata trasera", diagnostico: "Esguince leve",
     tratamiento: "Reposo y antiinflamatorio", pesoKg: 28.7, temperaturaC: 38.6,
     tipoServicio: "Urgencia", condicionCorporal: 6,
-    proximaConsulta: "2026-07-10", progreso: "Dolor a la palpación, sin fractura aparente",
+    proximaConsulta: fechaHace(-12), // dentro de 12 días
+    progreso: "Dolor a la palpación, sin fractura aparente",
     exploracion: {
       fc: "95 lpm", fr: "18 rpm",
       sistemaMusculoEsqueletico: "Claudicación grado 2 miembro pélvico izq.",
@@ -314,9 +317,11 @@ const recetas: Receta[] = [
 ];
 
 const vacunas: Vacuna[] = [
-  { id: "v-1", mascotaId: "m-1", nombre: "Rabia", fechaAplicacion: "2025-07-10", proximaDosis: "2026-07-10", lote: "RB-2231", veterinarioId: "u-2" },
+  // Refuerzo PRÓXIMO (8 días): así el portal muestra un aviso ámbar
+  { id: "v-1", mascotaId: "m-1", nombre: "Rabia", fechaAplicacion: "2025-07-10", proximaDosis: fechaHace(-8), lote: "RB-2231", veterinarioId: "u-2" },
   { id: "v-2", mascotaId: "m-1", nombre: "Séxtuple", fechaAplicacion: "2026-01-15", proximaDosis: "2027-01-15", lote: "SX-1102", veterinarioId: "u-2" },
-  { id: "v-3", mascotaId: "m-3", nombre: "Triple Felina", fechaAplicacion: "2026-05-30", proximaDosis: "2026-07-15", lote: "TF-0907", veterinarioId: "u-2" },
+  // Refuerzo VENCIDO (hace 5 días): muestra el aviso rojo del portal
+  { id: "v-3", mascotaId: "m-3", nombre: "Triple Felina", fechaAplicacion: "2026-05-30", proximaDosis: fechaHace(5), lote: "TF-0907", veterinarioId: "u-2" },
   { id: "v-4", mascotaId: "m-5", nombre: "Rabia", fechaAplicacion: "2026-06-01", proximaDosis: "2027-06-01", lote: "RB-3388", veterinarioId: "u-2" },
 ];
 
@@ -337,10 +342,14 @@ const productos: Producto[] = [
 ];
 
 /**
- * fechaHace: fecha ISO de hace `dias` días. Las ventas semilla usan
- * fechas RELATIVAS a hoy para que el corte de caja y los reportes
- * mensuales siempre muestren datos de demostración, sin importar
- * cuándo pruebes la app. (Con Supabase esto desaparece: habrá datos reales.)
+ * fechaHace: fecha ISO de hace `dias` días. Con un número NEGATIVO
+ * devuelve una fecha futura: fechaHace(-8) = dentro de 8 días.
+ * PARA QUÉ: las ventas, vacunas y citas semilla usan fechas RELATIVAS
+ * a hoy, para que el corte de caja, los reportes y los recordatorios
+ * del portal siempre muestren datos vivos sin importar cuándo pruebes
+ * la app. (Con Supabase desaparece: habrá datos reales.)
+ * NOTA: se declara con `function` (no `const`) para que el hoisting
+ * permita usarla en los arreglos semilla escritos más arriba.
  */
 function fechaHace(dias: number): string {
   const f = new Date();
@@ -498,12 +507,16 @@ export async function getClientePorId(id: string): Promise<Cliente | undefined> 
  * lo genera la base de datos (uuid).
  * TODO Supabase: supabase.from("clientes").insert(datos).select().single()
  */
-export async function crearCliente(datos: Omit<Cliente, "id" | "creadoEn">): Promise<Cliente> {
+export async function crearCliente(
+  datos: Omit<Cliente, "id" | "creadoEn" | "tokenPortal">
+): Promise<Cliente> {
   await simularRed();
   const nuevo: Cliente = {
     ...datos,
     id: `c-${Date.now()}`,
     creadoEn: new Date().toISOString().slice(0, 10),
+    // Todo cliente nace con su enlace de portal listo para compartir
+    tokenPortal: generarTokenPortal(),
   };
   clientes.push(nuevo);
   return nuevo;
@@ -538,6 +551,156 @@ export async function eliminarCliente(id: string): Promise<void> {
   const indice = clientes.findIndex((c) => c.id === id);
   if (indice === -1) throw new Error("Cliente no encontrado");
   clientes.splice(indice, 1);
+}
+
+// ------------------------------------------------------------
+// PORTAL DEL CLIENTE (página pública /portal/{token})
+// ------------------------------------------------------------
+
+/**
+ * generarTokenPortal: crea la parte secreta del enlace del cliente.
+ * POR QUÉ 20 caracteres aleatorios: hacen imposible adivinar el enlace
+ * de otro cliente por prueba y error.
+ * POR QUÉ este alfabeto: se omiten l, o, 0 y 1 para que nadie se
+ * confunda al dictar el enlace por teléfono.
+ * TODO Supabase: usar gen_random_uuid() o un token generado en el
+ * servidor; NUNCA derivarlo del id del cliente.
+ */
+function generarTokenPortal(): string {
+  const alfabeto = "abcdefghijkmnpqrstuvwxyz23456789";
+  let token = "";
+  for (let i = 0; i < 20; i++) {
+    token += alfabeto[Math.floor(Math.random() * alfabeto.length)];
+  }
+  return token;
+}
+
+/**
+ * regenerarTokenPortal: cambia el token de un cliente.
+ * PARA QUÉ: si el enlace se compartió por error, esto lo INVALIDA al
+ * instante (el enlace viejo deja de funcionar) y genera uno nuevo.
+ */
+export async function regenerarTokenPortal(clienteId: string): Promise<string> {
+  await simularRed();
+  const cliente = clientes.find((c) => c.id === clienteId);
+  if (!cliente) throw new Error("Cliente no encontrado");
+  cliente.tokenPortal = generarTokenPortal();
+  return cliente.tokenPortal;
+}
+
+/**
+ * getPortalPorToken: arma TODA la información que ve el dueño en su
+ * página pública, a partir del token de su enlace.
+ *
+ * QUÉ INCLUYE: sus mascotas con edad, vacunas, visitas y medicamentos,
+ *   más una lista unificada de recordatorios (lo primero que debe ver).
+ * QUÉ NO INCLUYE (a propósito): notas internas del veterinario, precios,
+ *   ids del sistema ni datos de otros clientes. El portal es de solo
+ *   lectura y muestra únicamente lo que le pertenece a ese dueño.
+ * DEVUELVE null si el token no existe (enlace inválido o revocado).
+ * TODO Supabase: una función RPC `portal_por_token(token)` con
+ *   SECURITY DEFINER, para que la página pública no necesite sesión
+ *   pero tampoco pueda leer las tablas completas.
+ */
+export async function getPortalPorToken(token: string): Promise<DatosPortal | null> {
+  await simularRed();
+
+  const cliente = clientes.find((c) => c.tokenPortal === token);
+  if (!cliente) return null; // enlace inválido o ya regenerado
+
+  const recordatorios: RecordatorioPortal[] = [];
+
+  // Recorremos SOLO las mascotas de este dueño
+  const susMascotas = mascotas.filter((m) => m.clienteId === cliente.id);
+
+  const mascotasPortal: MascotaPortal[] = susMascotas.map((m) => {
+    // Consultas de la mascota, de la más reciente a la más antigua
+    const susConsultas = consultas
+      .filter((c) => c.mascotaId === m.id)
+      .sort((a, b) => b.fecha.localeCompare(a.fecha));
+
+    const susVacunas = vacunas.filter((v) => v.mascotaId === m.id);
+
+    // --- Recordatorio de vacunas por vencer o vencidas ---
+    for (const v of susVacunas) {
+      if (!v.proximaDosis) continue;
+      const dias = diasHasta(v.proximaDosis);
+      if (dias > 60) continue; // aún lejano: no satura al dueño
+      recordatorios.push({
+        tipo: "vacuna",
+        nombreMascota: m.nombre,
+        descripcion: `Refuerzo de ${v.nombre}`,
+        fecha: v.proximaDosis,
+        diasRestantes: dias,
+        urgencia: dias < 0 ? "vencido" : dias <= 15 ? "proximo" : "programado",
+      });
+    }
+
+    // --- Recordatorio de la próxima cita agendada ---
+    const conCita = susConsultas.find((c) => c.proximaConsulta);
+    if (conCita?.proximaConsulta) {
+      const dias = diasHasta(conCita.proximaConsulta);
+      if (dias >= -30) { // citas muy viejas ya no se muestran
+        recordatorios.push({
+          tipo: "cita",
+          nombreMascota: m.nombre,
+          descripcion: "Cita de seguimiento",
+          fecha: conCita.proximaConsulta,
+          diasRestantes: dias,
+          urgencia: dias < 0 ? "vencido" : dias <= 15 ? "proximo" : "programado",
+        });
+      }
+    }
+
+    // Medicamentos recetados (se aplanan las recetas a una sola lista)
+    const medicamentos = recetas
+      .filter((r) => r.mascotaId === m.id)
+      .flatMap((r) =>
+        r.medicamentos.map((med) => ({
+          fecha: r.fecha,
+          nombre: med.nombre,
+          // Se junta la posología en una frase entendible para el dueño
+          indicaciones: [med.dosis, med.frecuencia, med.duracion]
+            .filter(Boolean).join(" · "),
+        }))
+      );
+
+    return {
+      id: m.id,
+      nombre: m.nombre,
+      especie: especies.find((e) => e.id === m.especieId)?.nombre ?? "—",
+      raza: razas.find((r) => r.id === m.razaId)?.nombre ?? "—",
+      sexo: m.sexo === "macho" ? "Macho" : "Hembra",
+      edad: calcularEdad(m.fechaNacimiento),
+      fotoUrl: m.fotoUrl,
+      proximaConsulta: conCita?.proximaConsulta,
+      vacunas: susVacunas.map((v) => ({
+        nombre: v.nombre,
+        fechaAplicacion: v.fechaAplicacion,
+        proximaDosis: v.proximaDosis,
+      })),
+      // Solo lo que le sirve al dueño: sin notas internas del médico
+      visitas: susConsultas.map((c) => ({
+        fecha: c.fecha,
+        servicio: c.tipoServicio ?? "Consulta",
+        diagnostico: c.diagnostico,
+        tratamiento: c.tratamiento,
+        pesoKg: c.pesoKg,
+      })),
+      medicamentos,
+    };
+  });
+
+  return {
+    cliente: {
+      nombre: cliente.nombre,
+      apellidos: cliente.apellidos,
+      telefono: cliente.telefono,
+    },
+    // Lo más urgente primero (vencidos arriba)
+    recordatorios: recordatorios.sort((a, b) => a.diasRestantes - b.diasRestantes),
+    mascotas: mascotasPortal,
+  };
 }
 
 /** getEspecies / getRazas: catálogos para los formularios de mascotas */
