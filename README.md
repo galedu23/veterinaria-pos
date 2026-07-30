@@ -84,6 +84,7 @@ La documentación completa vive en la carpeta [`docs/`](docs/):
 | [03 — Datos y servicios](docs/03-datos-y-servicios.md) | El modelo de datos, todas las funciones de `services/` y las reglas de negocio |
 | [04 — Componentes reutilizables](docs/04-componentes-reutilizables.md) | Los bloques compartidos: uploaders, edición in-place, carrito, compresión de imágenes |
 | [05 — Guía de modificaciones](docs/05-guia-de-modificaciones.md) | **Recetario paso a paso**: agregar campos, módulos, roles + solución de problemas |
+| [06 — Análisis del sistema anterior](docs/06-analisis-sistema-anterior.md) | Estudio del sistema en producción: módulos, problemas detectados y brechas por cubrir |
 | [Despliegue en Netlify](DESPLIEGUE-NETLIFY.md) | Cómo publicar y actualizar el sitio |
 | [Conexión a Supabase](supabase/README-CONEXION.md) | El plan para pasar de datos mock a base de datos real |
 
