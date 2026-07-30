@@ -29,9 +29,13 @@ interface Props {
   datos: PuntoBarra[];
   /** Cada cuántas barras se muestra la etiqueta del eje X (default 5) */
   cadaCuantasEtiquetas?: number;
+  /** Texto antes de la etiqueta en el tooltip (ej. "Día " -> "Día 5: $120") */
+  prefijoTooltip?: string;
 }
 
-export function GraficoBarras({ titulo, datos, cadaCuantasEtiquetas = 5 }: Props) {
+export function GraficoBarras({
+  titulo, datos, cadaCuantasEtiquetas = 5, prefijoTooltip = "",
+}: Props) {
   // El máximo define la escala: la barra más alta ocupa el 100% del alto
   const maximo = Math.max(...datos.map((d) => d.valor), 1); // mín. 1 evita dividir entre 0
 
@@ -39,20 +43,24 @@ export function GraficoBarras({ titulo, datos, cadaCuantasEtiquetas = 5 }: Props
     <div className="rounded-lg border bg-card p-4 shadow-sm">
       <p className="mb-3 text-sm font-semibold">{titulo}</p>
 
-      {/* Área de barras: items-end ancla todas a la línea base */}
-      <div className="flex h-40 items-end gap-0.5">
-        {datos.map((d) => (
+      {/* Área de barras: items-end ancla todas a la línea base.
+          Con POCAS barras se separan más; sin eso, 7 barras ocupando
+          todo el ancho se ven toscas y cuesta comparar sus alturas. */}
+      <div className={`flex h-40 items-end ${datos.length <= 10 ? "gap-2" : "gap-0.5"}`}>
+        {datos.map((d, indice) => (
           // group habilita el tooltip de SU barra al pasar el mouse
-          <div key={d.etiqueta} className="group relative flex h-full flex-1 flex-col justify-end">
+          <div key={`${d.etiqueta}-${indice}`} className="group relative flex h-full flex-1 flex-col justify-end">
             {/* Tooltip flotante: etiqueta + valor exacto */}
             <div className="pointer-events-none absolute -top-9 left-1/2 z-10 hidden -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-[10px] text-white group-hover:block">
-              Día {d.etiqueta}: {formatoMoneda(d.valor)}
+              {prefijoTooltip}{d.etiqueta}: {formatoMoneda(d.valor)}
             </div>
+            {/* max-w limita el ancho de cada barra y mx-auto la centra
+                dentro de su columna, para que no se vean como bloques */}
             <div
               className={
                 d.valor > 0
-                  ? "rounded-t bg-blue-600 transition-colors group-hover:bg-blue-500"
-                  : "rounded-t bg-muted" // día sin ventas: barra fantasma mínima
+                  ? "mx-auto w-full max-w-[52px] rounded-t bg-blue-600 transition-colors group-hover:bg-blue-500"
+                  : "mx-auto w-full max-w-[52px] rounded-t bg-muted" // día sin ventas
               }
               style={{ height: d.valor > 0 ? `${(d.valor / maximo) * 100}%` : "2px" }}
             />

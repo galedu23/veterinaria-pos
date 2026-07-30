@@ -99,6 +99,7 @@ export default function PaginaReportes() {
       <GraficoBarras
         titulo="Ventas por día del mes"
         datos={reporte.ventasPorDia.map((d) => ({ etiqueta: String(d.dia), valor: d.total }))}
+        prefijoTooltip="Día " /* el eje son números: el tooltip aclara que son días */
       />
 
       {/* Rankings lado a lado en escritorio */}

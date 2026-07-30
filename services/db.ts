@@ -489,6 +489,128 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   };
 }
 
+/**
+ * getResumenDashboard: TODAS las métricas del tablero en una sola
+ * llamada (el componente hace una petición y pinta todo de golpe).
+ *
+ * QUÉ DEVUELVE, y por qué cada cosa:
+ *   - kpis: los 4 números que importan HOY (dinero, actividad, alertas),
+ *     no el conteo histórico de registros — ese no ayuda a decidir nada.
+ *   - ventasSemana: tendencia de los últimos 7 días (gráfico de barras).
+ *   - porServicio: qué servicios se están dando este mes (ranking).
+ *   - listas de acción: citas, vacunas y stock que EXIGEN que alguien
+ *     haga algo hoy (llamar al dueño, resurtir un producto).
+ * TODO Supabase: cada bloque será una consulta agregada; conviene
+ *   empaquetarlas en una función RPC `resumen_dashboard()`.
+ */
+export async function getResumenDashboard(): Promise<{
+  kpis: {
+    ventasHoy: number;
+    ticketsHoy: number;
+    consultasHoy: number;
+    citasSemana: number;
+    alertas: number;
+  };
+  ventasSemana: Array<{ etiqueta: string; valor: number }>;
+  porServicio: Array<{ etiqueta: string; valor: number }>;
+  proximasCitas: Array<{ mascotaId: string; mascota: string; dueno: string; fecha: string; dias: number }>;
+  vacunasPendientes: Array<{ mascotaId: string; mascota: string; vacuna: string; fecha: string; dias: number }>;
+  stockBajo: Array<{ nombre: string; stock: number; minimo: number }>;
+  totales: { clientes: number; mascotas: number; consultas: number; productos: number };
+}> {
+  await simularRed();
+
+  const hoy = new Date().toISOString().slice(0, 10);
+
+  // --- Dinero y actividad de HOY ---
+  const ventasDeHoy = ventas.filter((v) => v.fecha === hoy && v.estado === "completada");
+  const consultasDeHoy = consultas.filter((c) => c.fecha === hoy);
+
+  // --- Ventas de los últimos 7 días (para el gráfico de tendencia) ---
+  const ventasSemana = Array.from({ length: 7 }, (_, i) => {
+    // i=0 es hace 6 días; i=6 es hoy (izquierda a derecha en el gráfico)
+    const fecha = new Date();
+    fecha.setDate(fecha.getDate() - (6 - i));
+    const iso = fecha.toISOString().slice(0, 10);
+    return {
+      // Etiqueta corta tipo "mar 28": día de la semana + número
+      etiqueta: fecha.toLocaleDateString("es-MX", { weekday: "short" }).slice(0, 3),
+      valor: ventas
+        .filter((v) => v.fecha === iso && v.estado === "completada")
+        .reduce((suma, v) => suma + v.total, 0),
+    };
+  });
+
+  // --- Servicios más dados este mes (agrupamos las consultas) ---
+  const mesActual = hoy.slice(0, 7);
+  const conteoServicios = new Map<string, number>();
+  for (const c of consultas) {
+    if (!c.fecha.startsWith(mesActual)) continue;
+    const servicio = c.tipoServicio ?? "Consulta";
+    conteoServicios.set(servicio, (conteoServicios.get(servicio) ?? 0) + 1);
+  }
+  const porServicio = [...conteoServicios.entries()]
+    .map(([etiqueta, valor]) => ({ etiqueta, valor }))
+    .sort((a, b) => b.valor - a.valor)
+    .slice(0, 5);
+
+  // --- Próximas citas (próximos 7 días) ---
+  const proximasCitas = consultas
+    .filter((c) => c.proximaConsulta && diasHasta(c.proximaConsulta) >= 0 && diasHasta(c.proximaConsulta) <= 7)
+    .map((c) => {
+      const mascota = mascotas.find((m) => m.id === c.mascotaId);
+      const dueno = mascota ? clientes.find((cl) => cl.id === mascota.clienteId) : undefined;
+      return {
+        mascotaId: c.mascotaId,
+        mascota: mascota?.nombre ?? "—",
+        dueno: dueno ? `${dueno.nombre} ${dueno.apellidos}` : "—",
+        fecha: c.proximaConsulta!,
+        dias: diasHasta(c.proximaConsulta!),
+      };
+    })
+    .sort((a, b) => a.dias - b.dias);
+
+  // --- Vacunas vencidas o por vencer (30 días) ---
+  const vacunasPendientes = vacunas
+    .filter((v) => v.proximaDosis && diasHasta(v.proximaDosis) <= 30)
+    .map((v) => ({
+      mascotaId: v.mascotaId,
+      mascota: mascotas.find((m) => m.id === v.mascotaId)?.nombre ?? "—",
+      vacuna: v.nombre,
+      fecha: v.proximaDosis!,
+      dias: diasHasta(v.proximaDosis!),
+    }))
+    .sort((a, b) => a.dias - b.dias);
+
+  // --- Productos que hay que resurtir ---
+  const stockBajo = productos
+    .filter((p) => p.stock <= p.stockMinimo)
+    .map((p) => ({ nombre: p.nombre, stock: p.stock, minimo: p.stockMinimo }))
+    .sort((a, b) => a.stock - b.stock);
+
+  return {
+    kpis: {
+      ventasHoy: ventasDeHoy.reduce((suma, v) => suma + v.total, 0),
+      ticketsHoy: ventasDeHoy.length,
+      consultasHoy: consultasDeHoy.length,
+      citasSemana: proximasCitas.length,
+      // Una sola cifra de "cosas que atender": vacunas + resurtidos
+      alertas: vacunasPendientes.length + stockBajo.length,
+    },
+    ventasSemana,
+    porServicio,
+    proximasCitas,
+    vacunasPendientes,
+    stockBajo,
+    totales: {
+      clientes: clientes.length,
+      mascotas: mascotas.length,
+      consultas: consultas.length,
+      productos: productos.length,
+    },
+  };
+}
+
 /** getClientes: devuelve el listado completo de clientes */
 export async function getClientes(): Promise<Cliente[]> {
   await simularRed();
