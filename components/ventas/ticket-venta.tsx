@@ -59,7 +59,6 @@ export function TicketVenta({ venta, nombreAtendio, nombreCliente, config, onCer
               <p className="mt-1">Ticket: {venta.folio}</p>
               <p>{formatoFecha(venta.fecha)} · Atendió: {nombreAtendio}</p>
               <p>Cliente: {nombreCliente}</p>
-              <p className="capitalize">Pago: {venta.metodoPago}</p>
             </div>
             <div className="border-t border-dashed py-2">
               {venta.items.map((i) => (
@@ -87,6 +86,36 @@ export function TicketVenta({ venta, nombreAtendio, nombreCliente, config, onCer
               <span>TOTAL</span>
               <span>{formatoMoneda(venta.total)}</span>
             </div>
+            {/* Desglose del pago: qué se cobró con cada forma y, si hubo
+                efectivo, con cuánto pagó el cliente y su cambio. */}
+            <div className="mt-2 border-t border-dashed pt-2">
+              {venta.pago.efectivo > 0 && (
+                <div className="flex justify-between">
+                  <span>Efectivo</span><span>{formatoMoneda(venta.pago.efectivo)}</span>
+                </div>
+              )}
+              {venta.pago.tarjeta > 0 && (
+                <div className="flex justify-between">
+                  <span>Tarjeta</span><span>{formatoMoneda(venta.pago.tarjeta)}</span>
+                </div>
+              )}
+              {venta.pago.transferencia > 0 && (
+                <div className="flex justify-between">
+                  <span>Transferencia</span><span>{formatoMoneda(venta.pago.transferencia)}</span>
+                </div>
+              )}
+              {venta.efectivoRecibido > 0 && (
+                <>
+                  <div className="flex justify-between">
+                    <span>Recibido</span><span>{formatoMoneda(venta.efectivoRecibido)}</span>
+                  </div>
+                  <div className="flex justify-between font-bold">
+                    <span>CAMBIO</span><span>{formatoMoneda(venta.cambio)}</span>
+                  </div>
+                </>
+              )}
+            </div>
+
             {/* Mensaje de despedida configurable desde /configuracion */}
             <p className="mt-2 text-center">{config?.mensajeDespedida || "¡Gracias por su compra!"}</p>
           </div>

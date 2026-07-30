@@ -19,9 +19,11 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SelectNativo } from "@/components/compartidos/select-nativo";
+import { PanelPago } from "@/components/ventas/panel-pago";
 import { formatoMoneda } from "@/lib/utils";
 import type { useCarrito } from "@/hooks/use-carrito";
-import type { Cliente, Producto, MetodoPago, TipoDescuento } from "@/types";
+import type { usePago } from "@/hooks/use-pago";
+import type { Cliente, Producto, TipoDescuento } from "@/types";
 
 interface Props {
   /** El objeto que devuelve useCarrito() en la página (estado elevado) */
@@ -30,9 +32,8 @@ interface Props {
   productos: Producto[];
   clienteId: string;
   onClienteChange: (id: string) => void;
-  /** Método de pago elegido (alimenta el corte de caja) */
-  metodoPago: MetodoPago;
-  onMetodoPagoChange: (metodo: MetodoPago) => void;
+  /** Estado del cobro (método, montos, cambio) — ver hooks/use-pago.ts */
+  pago: ReturnType<typeof usePago>;
   /** Descuento: tipo ("" = sin descuento), valor capturado y monto YA calculado
       por la página. El carrito solo lo PINTA — el cálculo vive en un solo lugar. */
   tipoDescuento: TipoDescuento | "";
@@ -46,8 +47,7 @@ interface Props {
 }
 
 export function CarritoVenta({
-  carrito, clientes, productos, clienteId, onClienteChange,
-  metodoPago, onMetodoPagoChange,
+  carrito, clientes, productos, clienteId, onClienteChange, pago,
   tipoDescuento, valorDescuento, onDescuentoChange, montoDescuento, totalFinal,
   error, cobrando, onCobrar,
 }: Props) {
@@ -117,19 +117,6 @@ export function CarritoVenta({
 
         {error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
 
-        {/* Método de pago: se guarda en la venta y alimenta el corte de caja */}
-        <div className="space-y-1">
-          <p className="text-xs font-medium text-muted-foreground">Método de pago</p>
-          <SelectNativo
-            value={metodoPago}
-            onChange={(e) => onMetodoPagoChange(e.target.value as MetodoPago)}
-          >
-            <option value="efectivo">Efectivo</option>
-            <option value="tarjeta">Tarjeta</option>
-            <option value="transferencia">Transferencia</option>
-          </SelectNativo>
-        </div>
-
         {/* Descuento: función estándar de caja registradora.
             El cajero elige % o $ y captura el valor; el monto lo calcula
             la página (con topes) y aquí solo se muestra. */}
@@ -172,20 +159,25 @@ export function CarritoVenta({
               <span>-{formatoMoneda(montoDescuento)}</span>
             </div>
           )}
-          <div className="mb-3 flex items-center justify-between">
+          <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Total a cobrar</span>
             <span className="text-2xl font-bold">{formatoMoneda(totalFinal)}</span>
           </div>
-          <Button
-            className="w-full bg-green-600 hover:bg-green-700"
-            size="lg"
-            disabled={carrito.items.length === 0 || cobrando}
-            onClick={onCobrar}
-          >
-            {cobrando ? <Loader2 className="h-4 w-4 animate-spin" /> : <CircleCheck />}
-            Cobrar
-          </Button>
         </div>
+
+        {/* Cobro: método, pago mixto y cálculo del cambio */}
+        <PanelPago pago={pago} totalACobrar={totalFinal} />
+
+        {/* El botón se bloquea si el cobro no cuadra (ver usePago.puedeCobrar) */}
+        <Button
+          className="w-full bg-green-600 hover:bg-green-700"
+          size="lg"
+          disabled={carrito.items.length === 0 || cobrando || !pago.puedeCobrar}
+          onClick={onCobrar}
+        >
+          {cobrando ? <Loader2 className="h-4 w-4 animate-spin" /> : <CircleCheck />}
+          Cobrar
+        </Button>
       </CardContent>
     </Card>
   );

@@ -25,10 +25,11 @@ import { CorteCaja } from "@/components/ventas/corte-caja";
 import { HistorialVentas } from "@/components/ventas/historial-ventas";
 import { useAuth } from "@/hooks/use-auth";
 import { useCarrito } from "@/hooks/use-carrito";
+import { usePago } from "@/hooks/use-pago";
 import { getProductos, getClientes, registrarVenta } from "@/services/db";
 import { getConfiguracionClinica } from "@/services/config";
 import type {
-  Producto, Cliente, Venta, MetodoPago, ConfiguracionClinica, TipoDescuento,
+  Producto, Cliente, Venta, ConfiguracionClinica, TipoDescuento,
 } from "@/types";
 
 export default function PaginaVentas() {
@@ -44,7 +45,6 @@ export default function PaginaVentas() {
 
   // ---- Estado de la interfaz ----
   const [clienteId, setClienteId] = React.useState(""); // "" = público general
-  const [metodoPago, setMetodoPago] = React.useState<MetodoPago>("efectivo");
   const [cobrando, setCobrando] = React.useState(false);
   const [error, setError] = React.useState("");
   const [ticket, setTicket] = React.useState<Venta | null>(null);
@@ -75,6 +75,10 @@ export default function PaginaVentas() {
 
   // Total a cobrar = subtotal de líneas - descuento
   const totalFinal = carrito.total - montoDescuento;
+
+  // ---- Cobro: método, pago mixto y cambio (hooks/use-pago.ts) ----
+  // Recibe el total para poder calcular faltantes y el cambio.
+  const pago = usePago(totalFinal);
 
   /** cargarDatos: productos, clientes y configuración del ticket en paralelo */
   const cargarDatos = React.useCallback(async () => {
@@ -123,14 +127,17 @@ export default function PaginaVentas() {
         subtotal: carrito.total,   // suma de líneas antes del descuento
         descuento: montoDescuento, // monto ya calculado (con topes)
         total: totalFinal,         // lo que realmente se cobró
-        metodoPago,                // queda registrado para el corte de caja
+        metodoPago: pago.metodo,   // etiqueta ("mixto" si se combinaron formas)
+        pago: pago.desglose,       // cuánto entró por cada forma (corte de caja)
+        efectivoRecibido: pago.efectivoRecibidoNumero,
+        cambio: pago.cambio,
         estado: "completada",
       });
       setTicket(venta);
       carrito.limpiar();
       setClienteId("");
-      setMetodoPago("efectivo"); // el efectivo es el caso más común
-      setTipoDescuento("");      // el descuento NO se arrastra a la siguiente venta
+      pago.limpiar();           // reinicia método, montos y efectivo recibido
+      setTipoDescuento("");     // el descuento NO se arrastra a la siguiente venta
       setValorDescuento("");
       await cargarDatos(); // refresca el stock visible en el catálogo
     } catch (err) {
@@ -182,8 +189,7 @@ export default function PaginaVentas() {
             productos={productos}
             clienteId={clienteId}
             onClienteChange={setClienteId}
-            metodoPago={metodoPago}
-            onMetodoPagoChange={setMetodoPago}
+            pago={pago}
             tipoDescuento={tipoDescuento}
             valorDescuento={valorDescuento}
             onDescuentoChange={(tipo, valor) => {

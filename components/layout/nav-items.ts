@@ -6,7 +6,8 @@
 
 import {
   LayoutDashboard, Users, PawPrint, Stethoscope, FileText, Syringe,
-  Package, ShoppingCart, Receipt, UserCog, Tags, Dog, Settings, BarChart3, HeartPulse,
+  Package, ShoppingCart, Receipt, UserCog, Tags, Dog, Settings, BarChart3,
+  HeartPulse, FileSignature,
 } from "lucide-react";
 import type { Rol } from "@/types";
 
@@ -30,6 +31,8 @@ export const ITEMS_NAVEGACION: ItemNavegacion[] = [
   { titulo: "Recetas", href: "/recetas", icono: FileText, roles: ["administrador", "veterinario"] },
   { titulo: "Vacunas", href: "/vacunas", icono: Syringe, roles: ["administrador", "veterinario"] },
   { titulo: "Servicios", href: "/servicios", icono: HeartPulse, roles: ["administrador"] },
+  { titulo: "Veterinarios", href: "/veterinarios", icono: Stethoscope, roles: ["administrador"] },
+  { titulo: "Formatos legales", href: "/formatos", icono: FileSignature, roles: ["administrador"] },
   { titulo: "Categorías", href: "/categorias", icono: Tags, roles: ["administrador"] },
   { titulo: "Productos", href: "/productos", icono: Package, roles: ["administrador", "recepcion"] },
   { titulo: "Compras", href: "/compras", icono: ShoppingCart, roles: ["administrador"] },

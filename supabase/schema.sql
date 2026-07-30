@@ -538,5 +538,66 @@ insert into public.servicios (nombre, precio, descripcion) values
 -- así renombrar un servicio no altera el historial ya capturado. Si a
 -- futuro se quiere FK dura, agregar columna servicio_id y migrar.
 
+-- ------------------------------------------------------------
+-- 14) COBRO AVANZADO: pago mixto y cambio
+-- ------------------------------------------------------------
+
+-- "mixto" = la venta se cubrió combinando varias formas de pago
+alter table public.ventas drop constraint if exists ventas_metodo_pago_check;
+alter table public.ventas add constraint ventas_metodo_pago_check
+  check (metodo_pago in ('efectivo', 'tarjeta', 'transferencia', 'mixto'));
+
+-- Desglose real del cobro: cuánto entró por cada forma.
+-- POR QUÉ separado de metodo_pago: al cerrar la caja, el efectivo del
+-- cajón debe cuadrar con la suma de pago_efectivo, no con la etiqueta.
+alter table public.ventas add column pago_efectivo numeric(10, 2) not null default 0;
+alter table public.ventas add column pago_tarjeta numeric(10, 2) not null default 0;
+alter table public.ventas add column pago_transferencia numeric(10, 2) not null default 0;
+alter table public.ventas add column efectivo_recibido numeric(10, 2) not null default 0;
+alter table public.ventas add column cambio numeric(10, 2) not null default 0;
+
+-- ------------------------------------------------------------
+-- 15) VETERINARIOS Y DOCUMENTOS LEGALES
+-- ------------------------------------------------------------
+
+-- Médicos que FIRMAN documentos. Distinto de `perfiles` (cuentas de
+-- acceso): la cédula profesional es obligatoria por ley para firmar.
+create table public.veterinarios (
+  id uuid primary key default gen_random_uuid(),
+  nombre text not null,
+  cedula_profesional text not null,
+  especialidad text,
+  telefono text,
+  email text,
+  firma_url text,               -- firma escaneada en el bucket "fotos"
+  activo boolean not null default true, -- baja LÓGICA: conserva lo firmado
+  -- Opcional: liga al médico con su cuenta de acceso, si la tiene
+  usuario_id uuid references public.perfiles (id) on delete set null
+);
+
+-- Plantillas EDITABLES de los documentos legales. El contenido lleva
+-- marcadores {{MASCOTA}}, {{CEDULA}}… que la app sustituye al generar.
+create table public.plantillas_documento (
+  id uuid primary key default gen_random_uuid(),
+  nombre text not null,
+  descripcion text,
+  fundamento_legal text,        -- NOM o ley que respalda el documento
+  contenido text not null,      -- cuerpo con marcadores
+  requiere_firma_veterinario boolean not null default true,
+  requiere_firma_propietario boolean not null default true,
+  activo boolean not null default true
+);
+
+alter table public.veterinarios enable row level security;
+alter table public.plantillas_documento enable row level security;
+create policy "empleados_todo" on public.veterinarios for all to authenticated using (true) with check (true);
+create policy "empleados_todo" on public.plantillas_documento for all to authenticated using (true) with check (true);
+
+-- NOTA: las 4 plantillas base (eutanasia, certificado de salud,
+-- estética y consentimiento quirúrgico) NO se siembran aquí porque su
+-- texto es largo; están en services/db.ts y se migrarán con un script
+-- al conectar Supabase. Deben ser validadas por el MVZ responsable
+-- antes de usarse con clientes reales.
+
 -- NOTA: los clientes/mascotas/productos de prueba NO se siembran aquí;
 -- captúralos desde la propia app para validar los formularios reales.

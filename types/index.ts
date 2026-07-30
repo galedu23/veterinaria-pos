@@ -150,6 +150,52 @@ export interface Receta {
 }
 
 /**
+ * Veterinario: el MÉDICO que firma consultas, recetas y documentos legales.
+ * POR QUÉ es distinto de `Usuario`: un usuario es una cuenta para entrar
+ * al sistema (puede ser recepción); un veterinario es el profesional cuya
+ * CÉDULA aparece en los documentos con valor legal. Un veterinario puede
+ * no tener cuenta, y una cuenta puede no ser de un veterinario.
+ * MARCO LEGAL (México): ejercer requiere cédula profesional (Ley
+ * Reglamentaria del Artículo 5o Constitucional) y debe imprimirse en
+ * certificados y recetas.
+ * EN SUPABASE: tabla `veterinarios`; `usuario_id` opcional para ligarlo
+ * a una cuenta de acceso.
+ */
+export interface Veterinario {
+  id: string;
+  nombre: string;
+  cedulaProfesional: string;  // obligatoria para firmar documentos
+  especialidad?: string;
+  telefono?: string;
+  email?: string;
+  /** Firma escaneada (WebP comprimido); se imprime en los documentos */
+  firmaUrl?: string;
+  activo: boolean;            // baja lógica: conserva el historial firmado
+}
+
+/**
+ * PlantillaDocumento: el TEXTO EDITABLE de un documento legal
+ * (consentimiento de eutanasia, certificado de salud, etc.).
+ * CÓMO FUNCIONA: el contenido lleva marcadores como {{MASCOTA}} o
+ * {{DUENO}} que se sustituyen con los datos reales al generarlo.
+ * Así la clínica puede redactar sus propios documentos SIN tocar código
+ * (ver components/formatos/editor-plantilla.tsx).
+ * EN SUPABASE: tabla `plantillas_documento`.
+ */
+export interface PlantillaDocumento {
+  id: string;
+  nombre: string;              // "Consentimiento Informado para Eutanasia"
+  descripcion?: string;        // para qué sirve, visible en el catálogo
+  fundamentoLegal?: string;    // NOM o ley que lo respalda
+  contenido: string;           // cuerpo con marcadores {{...}}
+  /** true = imprime el bloque de firma con cédula del veterinario */
+  requiereFirmaVeterinario: boolean;
+  /** true = imprime también el bloque de firma del propietario */
+  requiereFirmaPropietario: boolean;
+  activo: boolean;
+}
+
+/**
  * Servicio: catálogo de servicios de la clínica (Baño, Rayos X...).
  * Alimenta el select "Tipo de servicio" del alta de consulta.
  * EN SUPABASE: tabla `servicios`; a futuro `consultas.tipo_servicio`
@@ -194,8 +240,27 @@ export interface Producto {
   fotoUrl?: string;    // foto comprimida (WebP); URL de Storage a futuro
 }
 
-/** Métodos de pago aceptados en el punto de venta */
-export type MetodoPago = "efectivo" | "tarjeta" | "transferencia";
+/**
+ * Métodos de pago aceptados en el punto de venta.
+ * "mixto" = la venta se cubrió combinando varios métodos a la vez
+ * (ej. $500 en efectivo + $300 por transferencia).
+ */
+export type MetodoPago = "efectivo" | "tarjeta" | "transferencia" | "mixto";
+
+/**
+ * DesglosePago: cuánto dinero entró por CADA forma de pago en una venta.
+ * POR QUÉ un desglose y no solo la etiqueta `metodoPago`: al cerrar la
+ * caja, el efectivo del cajón debe cuadrar con la suma de `efectivo`
+ * de todas las ventas. Si solo guardáramos "mixto" no sabríamos cuánto
+ * de esa venta fue en billetes.
+ * NOTA: no incluye "mixto" como llave — mixto es la etiqueta, no una
+ * forma de pago real; el dinero siempre entra por una de estas tres.
+ */
+export interface DesglosePago {
+  efectivo: number;
+  tarjeta: number;
+  transferencia: number;
+}
 
 /** Datos de la clínica que se imprimen en el ticket (módulo Configuración) */
 export interface ConfiguracionClinica {
@@ -225,9 +290,9 @@ export interface CorteCaja {
   fecha: string;                        // día que se cierra (ISO)
   totalVendido: number;
   numeroTickets: number;
-  porMetodo: Record<MetodoPago, number>; // desglose por método de pago
-  usuarioId: string;                     // quién cerró la caja
-  cerradoEn: string;                     // fecha-hora del cierre
+  porMetodo: DesglosePago; // cuánto entró en efectivo / tarjeta / transferencia
+  usuarioId: string;       // quién cerró la caja
+  cerradoEn: string;       // fecha-hora del cierre
 }
 
 /** Línea de una venta o compra */
@@ -252,7 +317,14 @@ export interface Venta {
   subtotal: number;   // suma de las líneas ANTES del descuento
   descuento: number;  // monto descontado en $ (0 = sin descuento)
   total: number;      // subtotal - descuento (lo que se cobró)
-  metodoPago: MetodoPago; // alimenta el desglose del corte de caja
+  /** Etiqueta del pago; "mixto" cuando se combinaron varios métodos */
+  metodoPago: MetodoPago;
+  /** Cuánto se cubrió con cada forma de pago (la suma debe dar `total`) */
+  pago: DesglosePago;
+  /** Con cuánto efectivo pagó el cliente (para calcular el cambio) */
+  efectivoRecibido: number;
+  /** Cambio devuelto = efectivoRecibido - pago.efectivo */
+  cambio: number;
   /** "cancelada" devuelve el stock al inventario y sale de los reportes */
   estado: "completada" | "cancelada";
   canceladaEn?: string; // fecha-hora de la cancelación (auditoría)

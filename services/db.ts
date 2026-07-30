@@ -12,7 +12,8 @@
 import type {
   Cliente, Especie, Raza, Mascota, Consulta, Receta, Vacuna,
   Categoria, Producto, Venta, Compra, DashboardStats, ResultadoBusqueda,
-  DocumentoMedico, CorteCaja, MetodoPago, Antecedentes, Servicio,
+  DocumentoMedico, CorteCaja, MetodoPago, DesglosePago, Antecedentes, Servicio,
+  Veterinario, PlantillaDocumento,
 } from "@/types";
 import { diasHasta } from "@/lib/utils";
 
@@ -117,6 +118,170 @@ const servicios: Servicio[] = [
   { id: "sv-10", nombre: "Seguimiento", precio: 200 },
 ];
 
+// Médicos que firman consultas, recetas y documentos legales.
+// Se administran en /veterinarios (distinto de las cuentas de acceso).
+const veterinarios: Veterinario[] = [
+  {
+    id: "vet-1", nombre: "MVZ Laura Méndez Ruiz",
+    cedulaProfesional: "12345678", especialidad: "Medicina y cirugía de pequeñas especies",
+    telefono: "961 100 2030", email: "laura@vetgram.mx", activo: true,
+  },
+];
+
+// ------------------------------------------------------------
+// PLANTILLAS DE DOCUMENTOS LEGALES
+//
+// Redactadas conforme a la normativa veterinaria mexicana vigente.
+// SON EDITABLES desde /formatos: la clínica ajusta la redacción sin
+// tocar código. Los {{MARCADORES}} se sustituyen con los datos reales
+// al generar el documento (ver lib/documentos-legales.ts).
+//
+// IMPORTANTE: son formatos base de uso común en la práctica clínica.
+// Antes de usarlos con clientes reales deben ser revisados y validados
+// por el Médico Veterinario responsable y, de preferencia, por un
+// asesor legal, ya que algunos requisitos varían por estado.
+// ------------------------------------------------------------
+const plantillas: PlantillaDocumento[] = [
+  {
+    id: "pl-1",
+    nombre: "Consentimiento Informado para Eutanasia",
+    descripcion: "Autorización del propietario para el procedimiento de eutanasia humanitaria.",
+    fundamentoLegal: "NOM-033-SAG/ZOO-2014 · Ley Federal de Sanidad Animal",
+    requiereFirmaVeterinario: true,
+    requiereFirmaPropietario: true,
+    activo: true,
+    contenido: `Por medio del presente documento, yo, {{DUENO}}, en mi carácter de propietario(a) o responsable legal del animal de compañía descrito a continuación, manifiesto lo siguiente:
+
+DATOS DEL PACIENTE
+Nombre: {{MASCOTA}}
+Especie: {{ESPECIE}}          Raza: {{RAZA}}
+Sexo: {{SEXO}}          Edad: {{EDAD}}          Peso: {{PESO}}
+Color y señas particulares: {{COLOR}}
+
+MOTIVO MÉDICO QUE JUSTIFICA EL PROCEDIMIENTO
+{{MOTIVO}}
+
+DECLARACIONES
+1. Declaro que he sido informado(a) de forma clara y comprensible por el Médico Veterinario Zootecnista {{VETERINARIO}}, con cédula profesional número {{CEDULA}}, sobre el estado de salud, el pronóstico y las alternativas terapéuticas disponibles para mi animal de compañía.
+
+2. Entiendo que la eutanasia es un procedimiento IRREVERSIBLE que provoca la muerte del animal, y que se realizará mediante métodos que eviten dolor y sufrimiento innecesarios, conforme a la Norma Oficial Mexicana NOM-033-SAG/ZOO-2014, "Métodos para dar muerte a los animales domésticos y silvestres".
+
+3. Manifiesto que esta decisión la tomo de manera libre, voluntaria y sin coacción alguna, y que tuve oportunidad de resolver todas mis dudas antes de firmar.
+
+4. Declaro bajo protesta de decir verdad ser el propietario legítimo o el responsable autorizado del animal, y libero al Médico Veterinario y a esta clínica de cualquier responsabilidad derivada de la falsedad de esta declaración.
+
+5. Autorizo expresamente que el procedimiento se realice en la fecha y hora acordadas.
+
+DESTINO DEL CUERPO Y OBSERVACIONES
+{{OBSERVACIONES}}
+
+Fecha de expedición: {{FECHA}}`,
+  },
+  {
+    id: "pl-2",
+    nombre: "Certificado de Salud Animal",
+    descripcion: "Hace constar el estado clínico del paciente. Para viajes internacionales se requiere además el certificado zoosanitario de SENASICA.",
+    fundamentoLegal: "Ley Federal de Sanidad Animal · NOM-011-SSA2-2011 (rabia)",
+    requiereFirmaVeterinario: true,
+    requiereFirmaPropietario: false,
+    activo: true,
+    contenido: `El que suscribe, Médico Veterinario Zootecnista {{VETERINARIO}}, con cédula profesional número {{CEDULA}}, HACE CONSTAR que examinó clínicamente al animal de compañía cuyos datos se describen a continuación:
+
+DATOS DEL PACIENTE
+Nombre: {{MASCOTA}}
+Especie: {{ESPECIE}}          Raza: {{RAZA}}
+Sexo: {{SEXO}}          Edad: {{EDAD}}          Peso: {{PESO}}
+Color y señas particulares: {{COLOR}}
+
+DATOS DEL PROPIETARIO
+Nombre: {{DUENO}}
+Teléfono: {{TELEFONO_DUENO}}
+
+HALLAZGOS DE LA EXPLORACIÓN CLÍNICA
+{{MOTIVO}}
+
+ESQUEMA DE VACUNACIÓN Y DESPARASITACIÓN
+{{OBSERVACIONES}}
+
+HACE CONSTAR QUE:
+Al momento de la exploración, el animal descrito se encuentra clínicamente sano, sin signos aparentes de enfermedad infectocontagiosa, y cuenta con esquema de vacunación antirrábica conforme a la NOM-011-SSA2-2011, para la prevención y control de la rabia humana y en los perros y gatos.
+
+Se extiende el presente certificado a petición del interesado, para los fines legales que al mismo convengan.
+
+VIGENCIA: 15 días naturales contados a partir de la fecha de expedición.
+
+Lugar y fecha: {{DIRECCION_CLINICA}}, a {{FECHA}}`,
+  },
+  {
+    id: "pl-3",
+    nombre: "Consentimiento para Servicio de Estética",
+    descripcion: "Autorización y deslinde para el servicio de baño y corte.",
+    fundamentoLegal: "Contrato de prestación de servicios · Ley Federal de Protección al Consumidor",
+    requiereFirmaVeterinario: false,
+    requiereFirmaPropietario: true,
+    activo: true,
+    contenido: `Yo, {{DUENO}}, autorizo a {{CLINICA}} a realizar el servicio de estética a mi animal de compañía:
+
+DATOS DEL PACIENTE
+Nombre: {{MASCOTA}}
+Especie: {{ESPECIE}}          Raza: {{RAZA}}
+Edad: {{EDAD}}          Color y señas particulares: {{COLOR}}
+
+SERVICIO SOLICITADO
+{{MOTIVO}}
+
+ESTADO DEL PACIENTE AL INGRESO
+{{OBSERVACIONES}}
+
+DECLARACIONES
+1. Manifiesto haber informado al personal sobre el estado de salud de mi mascota, incluyendo padecimientos, alergias, cirugías recientes y su temperamento.
+
+2. Entiendo que durante el manejo estético pueden presentarse incidentes menores (irritación cutánea, pequeños cortes en zonas con nudos o piel flácida, o estrés), aun aplicando las mejores prácticas de manejo.
+
+3. Comprendo que si el pelaje presenta nudos severos puede ser necesario el rasurado completo, por el bienestar del animal.
+
+4. Autorizo que, en caso de una emergencia médica durante el servicio, se brinde la atención veterinaria inmediata que se considere necesaria, comprometiéndome a cubrir su costo.
+
+5. Acepto que este servicio NO incluye sedación; de requerirse, deberá autorizarse por separado y previa valoración médica.
+
+Fecha: {{FECHA}}`,
+  },
+  {
+    id: "pl-4",
+    nombre: "Consentimiento para Procedimiento Quirúrgico y Anestesia",
+    descripcion: "Autorización informada para cirugía, con advertencia de riesgo anestésico.",
+    fundamentoLegal: "NOM-062-ZOO-1999 (cuidado y uso de animales) · Código Civil Federal",
+    requiereFirmaVeterinario: true,
+    requiereFirmaPropietario: true,
+    activo: true,
+    contenido: `Yo, {{DUENO}}, en mi carácter de propietario(a) o responsable legal del paciente:
+
+DATOS DEL PACIENTE
+Nombre: {{MASCOTA}}
+Especie: {{ESPECIE}}          Raza: {{RAZA}}
+Sexo: {{SEXO}}          Edad: {{EDAD}}          Peso: {{PESO}}
+
+PROCEDIMIENTO PROPUESTO
+{{MOTIVO}}
+
+DECLARACIONES
+1. He sido informado(a) por el Médico Veterinario Zootecnista {{VETERINARIO}}, con cédula profesional número {{CEDULA}}, sobre la naturaleza del procedimiento, sus beneficios esperados, los riesgos que implica y las alternativas existentes.
+
+2. Entiendo que TODO procedimiento anestésico conlleva riesgos, incluidas reacciones adversas a los fármacos y, en casos excepcionales, la muerte del paciente, aun cuando se apliquen los protocolos y cuidados adecuados.
+
+3. Declaro haber informado con veracidad sobre el ayuno indicado, los medicamentos administrados, los padecimientos previos y las alergias conocidas del paciente.
+
+4. Autorizo al equipo médico a realizar los procedimientos adicionales que resulten necesarios ante hallazgos imprevistos durante la intervención, cuando su omisión ponga en riesgo la vida del paciente.
+
+5. Acepto que la medicina veterinaria no es una ciencia exacta, por lo que no se garantizan resultados específicos.
+
+INDICACIONES Y OBSERVACIONES
+{{OBSERVACIONES}}
+
+Fecha: {{FECHA}}`,
+  },
+];
+
 // Antecedentes: información BASE de cada paciente (una por mascota)
 const antecedentes: Antecedentes[] = [
   {
@@ -183,6 +348,26 @@ function fechaHace(dias: number): string {
   return f.toISOString().slice(0, 10);
 }
 
+/**
+ * pagoSimple: arma el desglose de pago de una venta cubierta con UNA
+ * sola forma de pago. Se usa en los datos semilla para no repetir el
+ * objeto completo nueve veces.
+ * (Las ventas reales del POS traen su desglose desde hooks/use-pago.ts,
+ * que además soporta pago mixto y cálculo de cambio.)
+ */
+function pagoSimple(metodo: MetodoPago, total: number) {
+  return {
+    metodoPago: metodo,
+    pago: {
+      efectivo: metodo === "efectivo" ? total : 0,
+      tarjeta: metodo === "tarjeta" ? total : 0,
+      transferencia: metodo === "transferencia" ? total : 0,
+    },
+    efectivoRecibido: 0, // 0 = pagó justo, no hubo cambio
+    cambio: 0,
+  };
+}
+
 // Historial de ventas semilla: HOY (corte de caja), días recientes
 // (reporte del mes) y ~1 mes atrás (comparativa vs mes anterior).
 const ventas: Venta[] = [
@@ -191,7 +376,7 @@ const ventas: Venta[] = [
     items: [
       { productoId: "p-1", nombreProducto: "Croquetas Premium Perro 20kg", cantidad: 1, precioUnitario: 890 },
     ],
-    subtotal: 890, descuento: 0, total: 890, metodoPago: "efectivo", estado: "completada",
+    subtotal: 890, descuento: 0, total: 890, ...pagoSimple("efectivo", 890), estado: "completada",
   },
   {
     id: "vt-2", folio: "V-0002", usuarioId: "u-3", fecha: fechaHace(0),
@@ -199,21 +384,21 @@ const ventas: Venta[] = [
       { productoId: "p-4", nombreProducto: "Vacuna Séxtuple (dosis)", cantidad: 2, precioUnitario: 250 },
       { productoId: "p-6", nombreProducto: "Shampoo antipulgas 500ml", cantidad: 1, precioUnitario: 135 },
     ],
-    subtotal: 635, descuento: 0, total: 635, metodoPago: "tarjeta", estado: "completada",
+    subtotal: 635, descuento: 0, total: 635, ...pagoSimple("tarjeta", 635), estado: "completada",
   },
   {
     id: "vt-3", folio: "V-0003", clienteId: "c-2", usuarioId: "u-3", fecha: fechaHace(1),
     items: [
       { productoId: "p-2", nombreProducto: "Alimento Gato Adulto 3kg", cantidad: 2, precioUnitario: 260 },
     ],
-    subtotal: 520, descuento: 20, total: 500, metodoPago: "efectivo", estado: "completada",
+    subtotal: 520, descuento: 20, total: 500, ...pagoSimple("efectivo", 500), estado: "completada",
   },
   {
     id: "vt-4", folio: "V-0004", clienteId: "c-4", usuarioId: "u-1", fecha: fechaHace(2),
     items: [
       { productoId: "p-1", nombreProducto: "Croquetas Premium Perro 20kg", cantidad: 2, precioUnitario: 890 },
     ],
-    subtotal: 1780, descuento: 0, total: 1780, metodoPago: "transferencia", estado: "completada",
+    subtotal: 1780, descuento: 0, total: 1780, ...pagoSimple("transferencia", 1780), estado: "completada",
   },
   {
     id: "vt-5", folio: "V-0005", usuarioId: "u-3", fecha: fechaHace(3),
@@ -221,14 +406,14 @@ const ventas: Venta[] = [
       { productoId: "p-5", nombreProducto: "Collar mediano", cantidad: 1, precioUnitario: 120 },
       { productoId: "p-6", nombreProducto: "Shampoo antipulgas 500ml", cantidad: 2, precioUnitario: 135 },
     ],
-    subtotal: 390, descuento: 0, total: 390, metodoPago: "efectivo", estado: "completada",
+    subtotal: 390, descuento: 0, total: 390, ...pagoSimple("efectivo", 390), estado: "completada",
   },
   {
     id: "vt-6", folio: "V-0006", clienteId: "c-3", usuarioId: "u-3", fecha: fechaHace(4),
     items: [
       { productoId: "p-3", nombreProducto: "Desparasitante canino", cantidad: 3, precioUnitario: 85 },
     ],
-    subtotal: 255, descuento: 0, total: 255, metodoPago: "tarjeta", estado: "completada",
+    subtotal: 255, descuento: 0, total: 255, ...pagoSimple("tarjeta", 255), estado: "completada",
   },
   // ---- Mes anterior (para la comparativa del reporte) ----
   {
@@ -236,21 +421,21 @@ const ventas: Venta[] = [
     items: [
       { productoId: "p-1", nombreProducto: "Croquetas Premium Perro 20kg", cantidad: 1, precioUnitario: 890 },
     ],
-    subtotal: 890, descuento: 0, total: 890, metodoPago: "efectivo", estado: "completada",
+    subtotal: 890, descuento: 0, total: 890, ...pagoSimple("efectivo", 890), estado: "completada",
   },
   {
     id: "vt-8", folio: "V-0008", usuarioId: "u-3", fecha: fechaHace(33),
     items: [
       { productoId: "p-2", nombreProducto: "Alimento Gato Adulto 3kg", cantidad: 3, precioUnitario: 260 },
     ],
-    subtotal: 780, descuento: 0, total: 780, metodoPago: "tarjeta", estado: "completada",
+    subtotal: 780, descuento: 0, total: 780, ...pagoSimple("tarjeta", 780), estado: "completada",
   },
   {
     id: "vt-9", folio: "V-0009", clienteId: "c-5", usuarioId: "u-1", fecha: fechaHace(35),
     items: [
       { productoId: "p-4", nombreProducto: "Vacuna Séxtuple (dosis)", cantidad: 4, precioUnitario: 250 },
     ],
-    subtotal: 1000, descuento: 0, total: 1000, metodoPago: "efectivo", estado: "completada",
+    subtotal: 1000, descuento: 0, total: 1000, ...pagoSimple("efectivo", 1000), estado: "completada",
   },
 ];
 
@@ -569,6 +754,94 @@ export async function eliminarServicio(id: string): Promise<void> {
     throw new Error("No se puede eliminar: hay consultas registradas con este servicio.");
   }
   servicios.splice(servicios.indexOf(servicio), 1);
+}
+
+// ------------------------------------------------------------
+// VETERINARIOS: médicos que firman documentos (≠ cuentas de usuario)
+// ------------------------------------------------------------
+
+/** getVeterinarios: médicos activos primero, ordenados por nombre */
+export async function getVeterinarios(): Promise<Veterinario[]> {
+  await simularRed();
+  return [...veterinarios].sort(
+    (a, b) => Number(b.activo) - Number(a.activo) || a.nombre.localeCompare(b.nombre)
+  );
+}
+
+/** crearVeterinario / actualizarVeterinario: alta y edición del médico */
+export async function crearVeterinario(datos: Omit<Veterinario, "id">): Promise<Veterinario> {
+  await simularRed();
+  const nuevo: Veterinario = { ...datos, id: `vet-${Date.now()}` };
+  veterinarios.push(nuevo);
+  return nuevo;
+}
+
+export async function actualizarVeterinario(
+  id: string,
+  datos: Partial<Omit<Veterinario, "id">>
+): Promise<Veterinario> {
+  await simularRed();
+  const indice = veterinarios.findIndex((v) => v.id === id);
+  if (indice === -1) throw new Error("Veterinario no encontrado");
+  veterinarios[indice] = { ...veterinarios[indice], ...datos };
+  return veterinarios[indice];
+}
+
+/**
+ * desactivarVeterinario: BAJA LÓGICA (no se borra la fila).
+ * POR QUÉ no se elimina: su cédula quedó impresa en certificados y
+ * recetas ya emitidos; borrarlo dejaría documentos sin respaldo de
+ * quién los firmó. Desactivarlo lo saca de los selects sin perder historial.
+ */
+export async function desactivarVeterinario(id: string): Promise<void> {
+  await simularRed();
+  const vet = veterinarios.find((v) => v.id === id);
+  if (!vet) throw new Error("Veterinario no encontrado");
+  vet.activo = false;
+}
+
+// ------------------------------------------------------------
+// PLANTILLAS DE DOCUMENTOS LEGALES (editables desde /formatos)
+// ------------------------------------------------------------
+
+/** getPlantillas: catálogo de formatos legales */
+export async function getPlantillas(): Promise<PlantillaDocumento[]> {
+  await simularRed();
+  return [...plantillas].sort((a, b) => a.nombre.localeCompare(b.nombre));
+}
+
+/** getPlantillaPorId: una plantilla concreta (para editar o generar) */
+export async function getPlantillaPorId(id: string): Promise<PlantillaDocumento | undefined> {
+  await simularRed();
+  return plantillas.find((p) => p.id === id);
+}
+
+/** crearPlantilla: la clínica puede redactar formatos propios */
+export async function crearPlantilla(datos: Omit<PlantillaDocumento, "id">): Promise<PlantillaDocumento> {
+  await simularRed();
+  const nueva: PlantillaDocumento = { ...datos, id: `pl-${Date.now()}` };
+  plantillas.push(nueva);
+  return nueva;
+}
+
+/** actualizarPlantilla: guarda la redacción editada del documento */
+export async function actualizarPlantilla(
+  id: string,
+  datos: Partial<Omit<PlantillaDocumento, "id">>
+): Promise<PlantillaDocumento> {
+  await simularRed();
+  const indice = plantillas.findIndex((p) => p.id === id);
+  if (indice === -1) throw new Error("Plantilla no encontrada");
+  plantillas[indice] = { ...plantillas[indice], ...datos };
+  return plantillas[indice];
+}
+
+/** eliminarPlantilla: quita un formato del catálogo */
+export async function eliminarPlantilla(id: string): Promise<void> {
+  await simularRed();
+  const indice = plantillas.findIndex((p) => p.id === id);
+  if (indice === -1) throw new Error("Plantilla no encontrada");
+  plantillas.splice(indice, 1);
 }
 
 /**
@@ -982,7 +1255,7 @@ export async function getCorteDelDia(): Promise<{
   fecha: string;
   totalVendido: number;
   numeroTickets: number;
-  porMetodo: Record<MetodoPago, number>;
+  porMetodo: DesglosePago;
   yaCerrada: boolean;
 }> {
   await simularRed();
@@ -990,9 +1263,15 @@ export async function getCorteDelDia(): Promise<{
   // Las CANCELADAS no cuentan: su dinero se devolvió y su stock regresó
   const ventasHoy = ventas.filter((v) => v.fecha === hoy && v.estado === "completada");
 
-  // Acumulamos el total por método de pago partiendo de cero
-  const porMetodo: Record<MetodoPago, number> = { efectivo: 0, tarjeta: 0, transferencia: 0 };
-  for (const v of ventasHoy) porMetodo[v.metodoPago] += v.total;
+  // Acumulamos usando el DESGLOSE real de cada venta (no la etiqueta):
+  // así una venta mixta suma su parte a efectivo Y a transferencia, y
+  // el efectivo del cajón cuadra con el renglón "efectivo".
+  const porMetodo: DesglosePago = { efectivo: 0, tarjeta: 0, transferencia: 0 };
+  for (const v of ventasHoy) {
+    porMetodo.efectivo += v.pago.efectivo;
+    porMetodo.tarjeta += v.pago.tarjeta;
+    porMetodo.transferencia += v.pago.transferencia;
+  }
 
   return {
     fecha: hoy,
@@ -1054,7 +1333,7 @@ export async function getReporteMensual(): Promise<{
   variacionPorcentaje: number | null; // null si el mes anterior no tuvo ventas
   ventasPorDia: Array<{ dia: number; total: number }>;
   topProductos: Array<{ nombre: string; cantidad: number; importe: number }>;
-  porMetodo: Record<MetodoPago, number>;
+  porMetodo: DesglosePago;
 }> {
   await simularRed();
 
@@ -1108,9 +1387,13 @@ export async function getReporteMensual(): Promise<{
     .sort((a, b) => b.importe - a.importe)
     .slice(0, 5);
 
-  // Ingresos del mes por método de pago
-  const porMetodo: Record<MetodoPago, number> = { efectivo: 0, tarjeta: 0, transferencia: 0 };
-  for (const v of delMes) porMetodo[v.metodoPago] += v.total;
+  // Ingresos del mes por forma de pago (usando el desglose real)
+  const porMetodo: DesglosePago = { efectivo: 0, tarjeta: 0, transferencia: 0 };
+  for (const v of delMes) {
+    porMetodo.efectivo += v.pago.efectivo;
+    porMetodo.tarjeta += v.pago.tarjeta;
+    porMetodo.transferencia += v.pago.transferencia;
+  }
 
   return {
     mesActual, totalMesActual, totalMesAnterior,

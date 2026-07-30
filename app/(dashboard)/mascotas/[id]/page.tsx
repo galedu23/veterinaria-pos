@@ -37,6 +37,7 @@ import { FormularioReceta } from "@/components/expediente/formulario-receta";
 import { EditorReceta } from "@/components/expediente/editor-receta";
 import { ListaVacunas, FormularioVacuna } from "@/components/expediente/vacunas-mascota";
 import { DocumentosMascota } from "@/components/expediente/documentos-mascota";
+import { GenerarDocumento } from "@/components/expediente/generar-documento";
 import { formatoFecha } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { tienePermiso } from "@/services/auth";
@@ -264,6 +265,19 @@ export default function PaginaExpediente() {
           Componente autosuficiente: carga y gestiona sus propios archivos
           ligados a esta mascota. */}
       <DocumentosMascota mascotaId={mascota.id} />
+
+      {/* ---------- Documentos legales (consentimientos, certificados) ----------
+          Solo roles clínicos: son documentos que firma un médico.
+          El peso viene de la consulta más reciente para llenar {{PESO}}. */}
+      {puedeRegistrarClinico && (
+        <GenerarDocumento
+          mascota={mascota}
+          nombreEspecie={nombreEspecie}
+          nombreRaza={nombreRaza}
+          dueno={dueno}
+          pesoActual={consultas.find((c) => c.pesoKg !== undefined)?.pesoKg}
+        />
+      )}
 
       {/* ---------- Modales de captura (no recargan la página) ----------
           La consulta usa el formulario clínico COMPLETO (Sheet ancho con

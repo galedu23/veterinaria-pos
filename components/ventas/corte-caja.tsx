@@ -25,10 +25,12 @@ import {
 import { formatoMoneda, formatoFecha } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { getCorteDelDia, registrarCorteCaja } from "@/services/db";
-import type { MetodoPago } from "@/types";
+import type { DesglosePago } from "@/types";
 
-/** Apariencia de cada método de pago en el desglose */
-const METODOS: Array<{ clave: MetodoPago; etiqueta: string; Icono: typeof Banknote }> = [
+/** Apariencia de cada forma de pago en el desglose.
+ *  `keyof DesglosePago` = solo efectivo/tarjeta/transferencia; "mixto"
+ *  no aparece porque es una etiqueta, no una forma real de cobro. */
+const METODOS: Array<{ clave: keyof DesglosePago; etiqueta: string; Icono: typeof Banknote }> = [
   { clave: "efectivo", etiqueta: "Efectivo", Icono: Banknote },
   { clave: "tarjeta", etiqueta: "Tarjeta", Icono: CreditCard },
   { clave: "transferencia", etiqueta: "Transferencia", Icono: Landmark },
