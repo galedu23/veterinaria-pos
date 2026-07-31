@@ -13,6 +13,10 @@ tocar y en qué orden**. La regla general: **empieza siempre por `types/index.ts
 [Datos de prueba](#receta-6-cambiar-los-datos-de-prueba) ·
 [Ajustar compresión de fotos](#receta-7-ajustar-la-compresión-de-imágenes) ·
 [Publicar cambios](#receta-8-publicar-cambios-en-el-sitio) ·
+[Editar un documento legal](#receta-9-editar-o-crear-un-documento-legal) ·
+[Ajustar el cobro del POS](#receta-10-ajustar-el-cobro-del-pos) ·
+[Cambiar el dashboard](#receta-11-agregar-un-kpi-o-panel-al-dashboard) ·
+[Ajustar el portal del cliente](#receta-12-ajustar-el-portal-del-cliente) ·
 [Problemas comunes](#problemas-comunes)
 
 ---
@@ -149,6 +153,70 @@ Netlify detecta el push y **redespliega solo** en 2-4 minutos. Detalles en
 
 > **Antes de subir**, verifica que compila: `npm run build`. Si falla, el mensaje
 > te dice el archivo y la línea del problema.
+
+---
+
+## Receta 9: Editar o crear un documento legal
+
+**La mayoría de las veces NO necesitas tocar código.** Entra como administrador
+a **`/formatos`**, edita el texto del documento y guarda. Los marcadores
+(`{{MASCOTA}}`, `{{CEDULA}}`…) son botones que se insertan donde tengas el cursor.
+
+Solo necesitas código en dos casos:
+
+- **Agregar un marcador nuevo** (ej. `{{MICROCHIP}}`):
+  1. Añade el campo a `DatosDocumento` en `lib/documentos-legales.ts`.
+  2. Agrégalo al array `MARCADORES` del mismo archivo (así aparece como botón).
+  3. Súmalo a la tabla `valores` dentro de `rellenarPlantilla()`.
+  4. Llénalo en `components/expediente/generar-documento.tsx` (objeto `datos`).
+- **Cambiar el diseño impreso** (membrete, márgenes, firmas): la función
+  `imprimirDocumento()` de `lib/documentos-legales.ts`, en el bloque `<style>`.
+
+> ⚠️ Los formatos incluidos son redacciones base. Antes de usarlos con clientes
+> reales deben validarse con el Médico Veterinario responsable y un asesor legal.
+
+---
+
+## Receta 10: Ajustar el cobro del POS
+
+Todo el cálculo vive en **`hooks/use-pago.ts`** — el componente visual no calcula
+nada, así que ahí es donde se cambian las reglas:
+
+- *Aceptar una forma de pago nueva* (ej. vales): agrégala a `MetodoPago` y a
+  `DesglosePago` en `types/index.ts`, y súmala en el `useMemo` del hook y en los
+  acumuladores de `getCorteDelDia()` / `getReporteMensual()`.
+- *Cambiar los billetes rápidos*: array `BILLETES` en
+  `components/ventas/panel-pago.tsx`.
+- *Cambiar cuándo se bloquea el botón Cobrar*: variable `error` / `puedeCobrar`
+  del hook.
+
+---
+
+## Receta 11: Agregar un KPI o panel al dashboard
+
+1. **`services/db.ts`** → `getResumenDashboard()`: calcula el dato nuevo y
+   agrégalo al objeto que devuelve.
+2. **`app/(dashboard)/page.tsx`**:
+   - Para un KPI: añade una `<TarjetaKpi>` a la rejilla (colores: `azul`,
+     `verde`, `morado`, `ambar`, `rojo`, `gris`).
+   - Para un panel: arma un array de `ItemPanel` (título, subtítulo, valor,
+     `urgencia`, `href`) y pásalo a `<PanelLista>`.
+
+---
+
+## Receta 12: Ajustar el portal del cliente
+
+- *Mostrar u ocultar información*: `getPortalPorToken()` en `services/db.ts`
+  decide qué se expone. **Está deliberadamente recortado**: no manda notas
+  internas, precios ni ids. Si agregas algo, pregúntate primero si el dueño
+  debe verlo.
+- *Cambiar cuándo aparece un recordatorio*: en la misma función, el filtro
+  `dias > 60` (vacunas) y los umbrales de `urgencia` (`< 0` vencido,
+  `<= 15` próximo).
+- *Cambiar el diseño*: `components/portal/recordatorios-portal.tsx` y
+  `tarjeta-mascota-portal.tsx`.
+- *Cambiar el mensaje de WhatsApp*: `abrirWhatsApp()` en
+  `components/clientes/enlace-portal.tsx`.
 
 ---
 

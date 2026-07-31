@@ -119,17 +119,35 @@ Material directo para la sección de *problemática* de tu reporte:
 
 ---
 
-## 6. Plan sugerido de desarrollo (siguiente fase)
+## 6. Estado de las brechas detectadas
 
-Ordenado por impacto en el trabajo diario de la clínica:
+Actualizado al 11 de julio de 2026.
 
-1. **Escáner de código de barras** en el POS (campo que enfoca automáticamente
-   y agrega el producto al leer el código).
-2. **Cálculo de cambio y pago mixto** en el carrito.
-3. **Descuento por línea** además del global.
-4. **Módulo de formatos imprimibles** (Eutanasia, Certificado Sanitario,
-   consentimiento de Estética) reutilizando la lógica de impresión de recetas.
-5. **Módulo de Veterinarios** con cédula profesional y firma para las recetas.
-6. **Exportar listados** (CSV/PDF) desde las tablas.
-7. **Migración de datos** desde la base de datos actual (585 clientes,
-   669 mascotas, 792 consultas).
+### ✅ Ya implementadas
+
+| Brecha | Cómo se resolvió |
+|---|---|
+| **Cálculo de cambio** | `hooks/use-pago.ts` + `panel-pago.tsx`, con botones rápidos de billetes |
+| **Pago mixto** | Tres montos con validación de faltante; el corte de caja usa el desglose real |
+| **Formatos legales imprimibles** | Módulo `/formatos` con 4 plantillas **editables** conforme a normativa mexicana |
+| **Módulo de Veterinarios** | `/veterinarios` con cédula profesional obligatoria y baja lógica |
+
+### ⏳ Pendientes
+
+1. **Escáner de código de barras** en el POS (campo con autofoco que agregue el
+   producto al leer el código) — *la de mayor impacto diario*.
+2. **Descuento por línea** además del global.
+3. **Exportar listados** (CSV/PDF) desde las tablas.
+4. **Campo "Colonia"** en clientes y **selector de registros por página**.
+5. **Migración de datos** desde la base actual (585 clientes, 669 mascotas,
+   792 consultas).
+
+### ➕ Funciones nuevas que el sistema anterior NO tiene
+
+- **Portal del cliente** (`/portal/{token}`): el dueño consulta vacunas, citas y
+  tratamientos desde su celular, sin contraseña.
+- **Dashboard accionable** con KPIs del día y listas de pendientes.
+- **Reportes mensuales** con gráficos y comparativa contra el mes anterior.
+- **Corte de caja** (Reporte Z) con desglose por forma de pago.
+- **Compresión de imágenes** Canvas → WebP (~99% menos peso en Storage).
+- **Editor de recetas in-place** y visor de documentos embebido.

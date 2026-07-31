@@ -96,6 +96,36 @@ La lógica del carrito (agregar, cambiar cantidad, quitar, limpiar, total).
 `precioUnitario` es un parámetro (venta usa precio de venta, compra usa precio de
 compra). No duplica código entre los dos módulos.
 
+### `use-pago.ts`
+Toda la **aritmética del cobro** del punto de venta: método elegido, montos del
+pago mixto, cuánto falta por cubrir y el **cambio** a devolver. El componente
+visual (`panel-pago.tsx`) solo pinta lo que este hook calcula.
+
+```tsx
+const pago = usePago(totalACobrar);
+// pago.desglose  -> { efectivo, tarjeta, transferencia }
+// pago.cambio    -> lo que hay que devolver
+// pago.puedeCobrar -> false si el cobro no cuadra (bloquea el botón)
+```
+
+Incluye un `redondear()` a centavos: sin él, `0.1 + 0.2` daría
+`0.30000000000000004` y una venta exacta marcaría un faltante fantasma.
+
+---
+
+## 4-bis. `components/dashboard/` — Piezas del tablero
+
+### `tarjeta-kpi.tsx`
+Tarjeta de indicador: número grande + etiqueta + dato de apoyo, con franja e
+icono de color (`azul`, `verde`, `morado`, `ambar`, `rojo`, `gris`). Si recibe
+`href`, toda la tarjeta se vuelve un enlace.
+
+### `panel-lista.tsx`
+Panel **genérico** de pendientes. El dashboard lo usa **tres veces** (citas,
+vacunas, stock bajo). Cada renglón es un `ItemPanel` con título, subtítulo, un
+valor a la derecha y una `urgencia` (`alta` roja / `media` ámbar / `baja` gris)
+que colorea ese valor. Muestra "y N más · Ver todo" cuando la lista se corta.
+
 ---
 
 ## 5. `lib/` — Utilidades puras (sin React)
@@ -108,6 +138,7 @@ Funciones base usadas en todos lados:
 | `formatoMoneda(n)` | `1160` → `$1,160.00` (MXN) |
 | `formatoFecha(iso)` | `2026-07-08` → `08 jul 2026` |
 | `diasHasta(iso)` | Días hasta una fecha (negativo si ya pasó) — alimenta el semáforo de vacunas |
+| `calcularEdad(iso)` | Fecha de nacimiento → `"3 años 2 meses"` (o solo meses en cachorros) — se usa en certificados y en el portal |
 
 ### `comprimir-imagen.ts`
 **La compresión Canvas → WebP**, compartida por el uploader de mascotas, el de
@@ -125,6 +156,18 @@ Genera el HTML imprimible de una receta (membrete con logo, tabla de
 medicamentos, firma) y abre el diálogo de impresión del navegador (desde ahí se
 "Guarda como PDF"). Lee la configuración de la clínica internamente, así el
 membrete es idéntico se imprima desde el expediente, el editor o `/recetas`.
+
+### `documentos-legales.ts`
+El motor de los **documentos legales**. Tres piezas:
+- `MARCADORES` — catálogo de etiquetas disponibles (`{{MASCOTA}}`, `{{CEDULA}}`…),
+  que el editor muestra como botones.
+- `rellenarPlantilla(contenido, datos, config)` — sustituye los marcadores por
+  los datos reales; los que quedan sin valor salen como `__________`.
+- `imprimirDocumento(...)` — arma el HTML (membrete con logo, cuerpo, bloques de
+  firma con cédula) en tamaño carta y abre el diálogo de impresión.
+
+> Escapa el HTML del contenido: el texto lo escribe un usuario, y sin escapar,
+> un `<` rompería el documento impreso.
 
 ### `supabase.ts`
 El cliente de conexión (singleton) con el interruptor `supabaseConfigurado()`.

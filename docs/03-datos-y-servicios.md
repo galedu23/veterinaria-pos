@@ -41,11 +41,27 @@ Servicio  ....>  Consulta.tipoServicio (por nombre)
 | `Vacuna` | Vacuna aplicada | `proximaDosis` (alimenta alertas) |
 | `DocumentoMedico` | PDF/imagen del expediente | `tipo`, `dataUrl` |
 | `Servicio` | Catálogo de servicios | nombre, precio |
+| `Veterinario` | Médico que **firma** documentos | `cedulaProfesional`, `activo` |
+| `PlantillaDocumento` | Formato legal **editable** | `contenido` con marcadores, `fundamentoLegal` |
 | `Producto` | Ítem de inventario | `stock`, `stockMinimo`, `fotoUrl` |
-| `Venta` | Ticket del POS | `items[]`, `descuento`, `metodoPago`, `estado` |
+| `Venta` | Ticket del POS | `items[]`, `descuento`, `pago`, `cambio`, `estado` |
+| `DesglosePago` | Cuánto entró por cada forma | efectivo, tarjeta, transferencia |
 | `Compra` | Entrada de inventario | `items[]`, proveedor |
 | `CorteCaja` | Reporte Z de un día | total, `porMetodo` |
 | `ConfiguracionClinica` | Datos para tickets/recetas | nombre, logo, mensaje |
+| `DatosPortal` | Lo que ve el dueño en su portal | cliente, recordatorios, mascotas |
+| `MascotaPortal` | Ficha reducida (sin notas internas) | vacunas, visitas, medicamentos |
+| `RecordatorioPortal` | Aviso de vacuna o cita | `urgencia`, `diasRestantes` |
+
+### Dos detalles importantes del modelo
+
+- **`Receta.consultaId` es obligatorio**: toda receta pertenece a una consulta
+  (vinculación estricta). En Supabase es `NOT NULL` con `ON DELETE CASCADE`.
+- **`Venta` guarda el desglose, no solo la etiqueta**: `metodoPago` puede decir
+  "mixto", pero `pago` dice cuánto entró en efectivo, tarjeta y transferencia.
+  El corte de caja usa el desglose para que el dinero del cajón cuadre.
+- **`Cliente.tokenPortal`** es la llave del enlace público; es aleatorio y
+  regenerable, nunca derivado del id.
 
 > **Regla al agregar un campo:** empieza SIEMPRE por `types/index.ts`. TypeScript
 > te marcará en rojo todos los lugares que debes tocar después. Es tu red de seguridad.
@@ -92,7 +108,11 @@ Todas son `async` y esperan `simularRed()` (150 ms) para imitar latencia real.
 
 | Función | Devuelve |
 |---|---|
-| `getDashboardStats()` | Métricas de las tarjetas del dashboard |
+| `getResumenDashboard()` | **Todo el tablero**: KPIs del día, ventas de la semana, servicios del mes y las 3 listas de pendientes |
+| `getDashboardStats()` | Conteos simples (se conserva para usos puntuales) |
+| `getPortalPorToken(token)` | Los datos del **portal del cliente**, o `null` si el enlace no existe |
+| `getVeterinarios()` | Médicos que firman documentos (activos primero) |
+| `getPlantillas()` / `getPlantillaPorId(id)` | Formatos legales editables |
 | `getClientes()` / `getClientePorId(id)` | Clientes |
 | `getMascotas()` / `getMascotaPorId(id)` / `getMascotasDeCliente(id)` | Mascotas |
 | `buscarMascotasAvanzado(texto)` | **Buscador inteligente** (cruza nombre+dueño+raza) |
@@ -121,6 +141,9 @@ Todas son `async` y esperan `simularRed()` (150 ms) para imitar latencia real.
 | Vacuna | `crearVacuna` | — | — |
 | Documento | `subirDocumento` | — | `eliminarDocumento` |
 | Servicio | `crearServicio` | `actualizarServicio` | `eliminarServicio`\* |
+| Veterinario | `crearVeterinario` | `actualizarVeterinario` | `desactivarVeterinario`† |
+| Plantilla legal | `crearPlantilla` | `actualizarPlantilla` | `eliminarPlantilla` |
+| Token del portal | (nace con el cliente) | `regenerarTokenPortal`‡ | — |
 | Especie/Raza | `crearEspecie` / `crearRaza` | — | `eliminarRaza`\* |
 | Categoría | `crearCategoria` | — | `eliminarCategoria`\* |
 | Producto | `crearProducto` | `actualizarProducto` | `eliminarProducto` |
@@ -128,6 +151,11 @@ Todas son `async` y esperan `simularRed()` (150 ms) para imitar latencia real.
 
 \* = **borrado protegido**: rechaza la operación si el registro está en uso
 (cliente con mascotas, raza con mascotas, servicio con consultas, etc.).
+
+† = **baja lógica** (`activo = false`), no borrado: su cédula quedó impresa en
+documentos ya firmados y borrarla los dejaría sin respaldo.
+
+‡ = **revoca el enlace anterior** del portal al instante y genera uno nuevo.
 
 ### Operaciones especiales (transaccionales)
 

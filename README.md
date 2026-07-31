@@ -47,8 +47,9 @@ npm run build   # compilación de producción (lo que ejecuta Netlify)
 proyecto de veterinaria/
 ├── app/                     # PÁGINAS (cada carpeta = una ruta URL)
 │   ├── login/               #   /login (pública)
+│   ├── portal/[token]/      #   /portal/xxx — PORTAL PÚBLICO del cliente
 │   └── (dashboard)/         #   Rutas PROTEGIDAS (piden sesión) con sidebar
-│       ├── page.tsx         #   /            -> Dashboard
+│       ├── page.tsx         #   /            -> Tablero principal
 │       ├── clientes/        #   /clientes y /clientes/[id]
 │       ├── mascotas/        #   /mascotas y /mascotas/[id] (expediente)
 │       ├── ventas/          #   /ventas (punto de venta)
@@ -57,12 +58,14 @@ proyecto de veterinaria/
 │   ├── ui/                  #   Base shadcn/ui (button, dialog, table...)
 │   ├── compartidos/         #   Reutilizables entre módulos
 │   ├── layout/              #   Sidebar, header, buscador global
+│   ├── dashboard/           #   Tarjetas KPI y paneles de pendientes
+│   ├── portal/              #   Vistas del portal del cliente
 │   └── <módulo>/            #   ventas/, productos/, expediente/, etc.
 ├── services/                # ACCESO A DATOS (la única capa que se
 │   ├── db.ts                #   reescribirá al conectar Supabase)
 │   ├── auth.ts              #   Login/roles mockeados
 │   └── config.ts            #   Datos de la clínica (localStorage)
-├── hooks/                   # Lógica de React compartida (sesión, carrito)
+├── hooks/                   # Lógica de React compartida (sesión, carrito, cobro)
 ├── lib/                     # Utilidades puras (compresión, impresión, formatos)
 ├── types/index.ts           # TODOS los tipos = futuras tablas de Supabase
 ├── supabase/                # schema.sql + guía de conexión
@@ -70,6 +73,18 @@ proyecto de veterinaria/
 ├── public/                  # manifest.json (PWA) e íconos
 └── netlify.toml             # Configuración del deploy
 ```
+
+## Módulos del sistema (21 rutas)
+
+| Área | Módulos |
+|---|---|
+| **Tablero** | Dashboard con KPIs del día, tendencia de ventas y pendientes accionables |
+| **Clientes y pacientes** | Clientes · Mascotas (buscador cruzado) · Expediente clínico completo |
+| **Clínico** | Consultas · Recetas (editor in-place) · Vacunas con alertas · Antecedentes · Documentos médicos · **Formatos legales** |
+| **Comercial** | Punto de venta (descuento, pago mixto, **cambio**, ticket, corte de caja) · Compras · Productos · Reportes mensuales |
+| **Catálogos** | Servicios · Especies y Razas · Categorías · **Veterinarios** |
+| **Administración** | Usuarios · Configuración de la clínica (logo, datos del ticket) |
+| **Público** | **Portal del cliente** (`/portal/{token}`): sus mascotas, vacunas y citas, sin contraseña |
 
 ---
 

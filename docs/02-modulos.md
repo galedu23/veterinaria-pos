@@ -9,21 +9,36 @@ explicado en [01 — Arquitectura](01-arquitectura.md).
 [Expediente clínico](#expediente-clínico) · [Consultas / Recetas / Vacunas (globales)](#listados-globales-clínicos) ·
 [Productos](#productos-inventario) · [Punto de Venta](#punto-de-venta-pos) ·
 [Compras](#compras) · [Reportes](#reportes) · [Servicios](#servicios) ·
+[Veterinarios](#veterinarios) · [Formatos legales](#formatos-legales) ·
+[Portal del cliente](#portal-del-cliente) ·
 [Catálogos](#catálogos-razas-y-categorías) · [Usuarios](#usuarios) · [Configuración](#configuración)
 
 ---
 
 ## Dashboard
 
-- **Ruta:** `/` · **Archivo:** `app/(dashboard)/page.tsx`
-- **Qué hace:** muestra las tarjetas de métricas de colores (usuarios, clientes,
-  mascotas, consultas, productos, vacunas próximas). Cada tarjeta enlaza a su módulo.
-- **De dónde salen los números:** `getDashboardStats()` en `services/db.ts`.
+- **Ruta:** `/` · **Archivos:**
+  - `app/(dashboard)/page.tsx` — orquestador
+  - `components/dashboard/tarjeta-kpi.tsx` — tarjeta de indicador
+  - `components/dashboard/panel-lista.tsx` — panel de pendientes (genérico)
+  - Reutiliza `grafico-barras.tsx` y `barras-horizontales.tsx` de reportes
+- **Qué hace:** es un **tablero de trabajo**, no un contador de registros.
+  De arriba hacia abajo:
+  1. Saludo según la hora + fecha
+  2. **4 KPIs del día**: ventas, consultas, citas de la semana, alertas
+  3. **Gráficos**: tendencia de ventas (7 días) y servicios más dados del mes
+  4. **3 paneles de pendientes**: próximas citas, vacunas por aplicar y
+     productos por resurtir — con nombre, urgencia y enlace al detalle
+  5. Totales del sistema al pie (contexto, no decisiones)
+- **De dónde salen los datos:** `getResumenDashboard()` en `services/db.ts`
+  (una sola llamada devuelve todo).
+- **Roles:** el dinero (ventas y su gráfico) solo lo ven administrador y
+  recepción; un veterinario ve el tablero sin importes.
 - **Cómo modificar:**
-  - *Agregar una tarjeta*: añade un objeto al array `TARJETAS` (clave, título,
-    color, icono, href) y asegúrate de que `getDashboardStats()` devuelva esa clave.
-  - *Cambiar colores*: son clases Tailwind (`bg-yellow-500`, `bg-blue-600`...) en
-    el mismo array.
+  - *Agregar un KPI*: añade el dato en `getResumenDashboard()` y una
+    `<TarjetaKpi>` en la rejilla (colores disponibles: azul, verde, morado,
+    ámbar, rojo, gris).
+  - *Agregar un panel*: arma un array de `ItemPanel` y pásalo a `<PanelLista>`.
 
 ---
 
@@ -120,21 +135,32 @@ siempre se hace desde el expediente de cada mascota.
 ## Punto de Venta (POS)
 
 - **Ruta:** `/ventas` · **Archivos:**
-  - `app/(dashboard)/ventas/page.tsx` — orquestador (dueño del carrito y del descuento)
+  - `app/(dashboard)/ventas/page.tsx` — orquestador (dueño del carrito, descuento y cobro)
   - `components/ventas/catalogo-productos.tsx` — izquierda: buscador + rejilla con fotos
-  - `components/ventas/carrito-venta.tsx` — derecha: líneas, descuento, método de pago, total
+  - `components/ventas/carrito-venta.tsx` — derecha: líneas, descuento y totales
+  - `components/ventas/panel-pago.tsx` — **cobro: método, pago mixto y cambio**
+  - `hooks/use-pago.ts` — toda la aritmética del cobro
   - `components/ventas/ticket-venta.tsx` — ticket interno (con logo/datos de la clínica)
   - `components/ventas/historial-ventas.tsx` — Drawer: reimprimir y cancelar tickets del día
   - `components/ventas/corte-caja.tsx` — Reporte Z: total del día + desglose por pago
 - **Funciones de caja registradora:**
   - *Descuento* (% o monto fijo): el cálculo vive en la página (`useMemo`) con
     topes (% máx 100, monto máx = subtotal).
-  - *Método de pago*: efectivo / tarjeta / transferencia; alimenta el corte de caja.
+  - *Método de pago*: efectivo / tarjeta / transferencia / **mixto**.
+  - *Cambio*: se captura con cuánto paga el cliente y el sistema calcula la
+    devolución. Hay **botones rápidos de billetes** ($50 a $1000 y "Justo").
+    El cambio se calcula solo sobre la parte en efectivo (una tarjeta no da cambio).
+  - *Pago mixto*: tres montos (efectivo/tarjeta/transferencia) con aviso de
+    cuánto falta por cubrir; el botón Cobrar se bloquea si no cuadra.
   - *Reimprimir*: desde el Historial, reutiliza el mismo `TicketVenta`.
   - *Cancelar* (solo admin): `cancelarVenta()` **devuelve el stock** y marca el
     ticket como cancelado (no lo borra — el folio no desaparece).
-- **Descontar stock:** `registrarVenta()` valida y descuenta; una venta cancelada
-  o el corte de caja excluyen los tickets cancelados.
+- **Descontar stock:** `registrarVenta()` valida y descuenta; el corte de caja
+  y los reportes excluyen los tickets cancelados y suman el **desglose real**
+  por forma de pago (no la etiqueta), para que el efectivo del cajón cuadre.
+- **Cómo modificar:**
+  - *Cambiar los billetes rápidos*: array `BILLETES` en `panel-pago.tsx`.
+  - *Cambiar reglas de cobro*: todo está en `hooks/use-pago.ts`.
 
 ---
 
@@ -170,6 +196,84 @@ siempre se hace desde el expediente de cada mascota.
 - **La conexión clave:** este catálogo **alimenta el select "Tipo de servicio"**
   del alta de consulta. Agrega "Ultrasonido" aquí y aparece en la próxima consulta.
 - **Regla:** no se puede borrar un servicio ya usado en consultas.
+
+---
+
+## Veterinarios
+
+- **Ruta:** `/veterinarios` (solo admin) · **Archivos:**
+  - `app/(dashboard)/veterinarios/page.tsx`
+  - `components/veterinarios/gestion-veterinarios.tsx` (tabla + formulario)
+- **Qué es y por qué está separado de Usuarios:** un **usuario** es una cuenta
+  para entrar al sistema; un **veterinario** es el profesional cuya **cédula**
+  se imprime en recetas y certificados. Un médico puede no tener cuenta, y una
+  cuenta (recepción) no es un médico.
+- **La cédula profesional es obligatoria**: sin ella un certificado no tiene
+  validez legal en México.
+- **Baja lógica, no borrado**: al dar de baja se marca `activo = false`. Si se
+  borrara, los documentos ya firmados quedarían sin respaldo de quién los firmó.
+
+---
+
+## Formatos legales
+
+- **Ruta:** `/formatos` (solo admin) · **Archivos:**
+  - `app/(dashboard)/formatos/page.tsx` — catálogo de formatos
+  - `components/formatos/editor-plantilla.tsx` — editor del texto (Sheet ancho)
+  - `components/expediente/generar-documento.tsx` — generación desde el expediente
+  - `lib/documentos-legales.ts` — rellena los marcadores e imprime
+- **Qué hace:** administra los documentos legales de la clínica. Incluye 4
+  redacciones base conforme a normativa mexicana:
+
+  | Documento | Fundamento |
+  |---|---|
+  | Consentimiento Informado para Eutanasia | NOM-033-SAG/ZOO-2014 |
+  | Certificado de Salud Animal | NOM-011-SSA2-2011 (rabia) |
+  | Consentimiento para Servicio de Estética | LFPC / contrato de servicios |
+  | Consentimiento Quirúrgico y Anestesia | NOM-062-ZOO-1999 |
+
+- **Son totalmente editables**: el texto usa marcadores (`{{MASCOTA}}`,
+  `{{CEDULA}}`, `{{DUENO}}`…) que se sustituyen al generar el documento. En el
+  editor los marcadores son **botones que se insertan en la posición del cursor**.
+  También se pueden crear formatos nuevos desde cero.
+- **Cómo se genera:** en el expediente de la mascota → sección "Documentos
+  legales" → se elige el formato, quién firma y se llenan dos campos libres
+  (`{{MOTIVO}}` y `{{OBSERVACIONES}}`) → **vista previa** → Imprimir/PDF.
+  Los marcadores sin dato salen como `__________` para llenar a mano.
+- ⚠️ **Aviso**: son redacciones base. Antes de usarlas con clientes reales deben
+  ser validadas por el Médico Veterinario responsable y un asesor legal.
+- **Cómo modificar:**
+  - *Agregar un marcador nuevo*: añádelo a `DatosDocumento` y a `MARCADORES` en
+    `lib/documentos-legales.ts`, y llénalo en `generar-documento.tsx`.
+  - *Cambiar el diseño impreso* (membrete, márgenes, firmas): la función
+    `imprimirDocumento()` del mismo archivo.
+
+---
+
+## Portal del cliente
+
+- **Ruta:** `/portal/[token]` — **PÚBLICA**, sin sesión · **Archivos:**
+  - `app/portal/[token]/page.tsx` — la página que ve el dueño
+  - `components/portal/recordatorios-portal.tsx` — avisos con semáforo
+  - `components/portal/tarjeta-mascota-portal.tsx` — ficha con acordeón
+  - `components/clientes/enlace-portal.tsx` — compartir el enlace (lado clínica)
+- **Qué ve el cliente:** saludo con su nombre, **recordatorios unificados** de
+  todas sus mascotas (vacunas y citas, ordenados por urgencia con colores
+  rojo/ámbar/azul) y una tarjeta por mascota con secciones plegables: vacunas,
+  visitas y medicamentos. Todo en lenguaje de dueño, no de médico.
+- **Cómo accede:** con un enlace único (`/portal/{token}`). Sin usuario ni
+  contraseña. Desde el perfil del cliente la clínica puede **copiarlo, enviarlo
+  por WhatsApp** con mensaje prellenado, o **regenerarlo** para revocar el anterior.
+- **Por qué NO vive en `(dashboard)`:** esa carpeta exige sesión y pinta el menú
+  de administración. El portal es público y debe verse limpio en un celular.
+- **Seguridad:**
+  - El token es aleatorio (20 caracteres), **no el id del cliente** — si fuera
+    `/portal/c-1`, cualquiera vería otro expediente cambiando el número.
+  - Es de **solo lectura**: desde el portal no se modifica nada.
+  - `getPortalPorToken()` **omite a propósito** notas internas del veterinario,
+    precios e ids del sistema.
+  - En Supabase se leerá con la función `portal_por_token()` (`SECURITY DEFINER`),
+    para que la página pública nunca consulte las tablas directamente.
 
 ---
 
