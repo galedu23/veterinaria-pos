@@ -18,8 +18,9 @@
 // ============================================================
 
 import * as React from "react";
-import { ImagePlus, Loader2, CircleCheck, X } from "lucide-react";
+import { ImagePlus, Loader2, CircleCheck, X, Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useCapturaImagen } from "@/hooks/use-captura-imagen";
 import { comprimirImagen, type FotoComprimida, type OpcionesCompresion } from "@/lib/comprimir-imagen";
 
 interface Props {
@@ -36,18 +37,13 @@ interface Props {
 }
 
 export function ImageUploader({ imagenActual, alt, onImagenLista, onQuitar, opciones }: Props) {
-  const inputRef = React.useRef<HTMLInputElement>(null);
   const [procesando, setProcesando] = React.useState(false);
   const [error, setError] = React.useState("");
   // Guardamos los pesos de la última compresión para mostrar el ahorro
   const [ahorro, setAhorro] = React.useState<{ original: number; final: number } | null>(null);
 
-  /** manejarSeleccion: comprime el archivo elegido y avisa al padre */
-  const manejarSeleccion = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const archivo = e.target.files?.[0];
-    e.target.value = ""; // permite volver a elegir el mismo archivo
-    if (!archivo) return;
-
+  /** procesarArchivo: comprime la imagen (venga de cámara o archivo) y avisa al padre */
+  const procesarArchivo = async (archivo: File) => {
     setError("");
     setAhorro(null);
 
@@ -68,6 +64,9 @@ export function ImageUploader({ imagenActual, alt, onImagenLista, onQuitar, opci
       setProcesando(false);
     }
   };
+
+  // Cámara y galería comparten el mismo procesamiento (ver el hook)
+  const captura = useCapturaImagen(procesarArchivo);
 
   return (
     <div className="space-y-2">
@@ -102,16 +101,23 @@ export function ImageUploader({ imagenActual, alt, onImagenLista, onQuitar, opci
         </div>
 
         <div className="space-y-1">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={procesando}
-            onClick={() => inputRef.current?.click()}
-          >
-            {procesando ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus />}
-            {imagenActual ? "Cambiar imagen" : "Elegir imagen"}
-          </Button>
+          {/* Dos caminos: cámara directa (rápido en celular) o archivo */}
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button" variant="outline" size="sm"
+              disabled={procesando} onClick={captura.abrirCamara}
+            >
+              {procesando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera />}
+              Tomar foto
+            </Button>
+            <Button
+              type="button" variant="outline" size="sm"
+              disabled={procesando} onClick={captura.abrirGaleria}
+            >
+              <ImagePlus />
+              {imagenActual ? "Cambiar archivo" : "Elegir archivo"}
+            </Button>
+          </div>
 
           {/* Evidencia del ahorro tras comprimir */}
           {ahorro && (
@@ -125,12 +131,21 @@ export function ImageUploader({ imagenActual, alt, onImagenLista, onQuitar, opci
 
       {error && <p className="text-xs text-red-600">{error}</p>}
 
-      {/* Input real oculto: en celular ofrece cámara o galería */}
+      {/* Los dos inputs reales, ocultos. `capture` hace que el celular
+          abra la cámara directo, sin el menú intermedio. */}
       <input
-        ref={inputRef}
+        ref={captura.refCamara}
         type="file"
         accept="image/*"
-        onChange={manejarSeleccion}
+        capture="environment"
+        onChange={captura.manejarCambio}
+        className="hidden"
+      />
+      <input
+        ref={captura.refGaleria}
+        type="file"
+        accept="image/*"
+        onChange={captura.manejarCambio}
         className="hidden"
       />
     </div>

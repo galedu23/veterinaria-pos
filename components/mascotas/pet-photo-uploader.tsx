@@ -21,7 +21,8 @@
 // ============================================================
 
 import * as React from "react";
-import { Camera, PawPrint, Loader2, CircleCheck } from "lucide-react";
+import { Camera, PawPrint, Loader2, CircleCheck, ImageIcon } from "lucide-react";
+import { useCapturaImagen } from "@/hooks/use-captura-imagen";
 import { Button } from "@/components/ui/button";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
@@ -46,9 +47,6 @@ interface Props {
 }
 
 export function PetPhotoUploader({ mascotaId, fotoActual, nombreMascota, onFotoGuardada }: Props) {
-  // Referencia al <input type="file"> oculto: el botón visible lo "dispara"
-  const inputArchivoRef = React.useRef<HTMLInputElement>(null);
-
   // Estado del flujo: resultado de la compresión -> abre el modal de vista previa
   const [resultado, setResultado] = React.useState<FotoComprimida | null>(null);
   const [procesando, setProcesando] = React.useState(false); // comprimiendo
@@ -56,16 +54,10 @@ export function PetPhotoUploader({ mascotaId, fotoActual, nombreMascota, onFotoG
   const [error, setError] = React.useState("");
 
   /**
-   * manejarSeleccion: se ejecuta cuando el usuario elige un archivo.
-   * Comprime de inmediato y abre la vista previa con el resultado.
+   * procesarArchivo: recibe la foto (de la cámara o de la galería),
+   * la comprime de inmediato y abre la vista previa con el resultado.
    */
-  const manejarSeleccion = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const archivo = e.target.files?.[0];
-    // Reseteamos el input para que elegir LA MISMA foto dos veces
-    // seguidas vuelva a disparar el evento onChange.
-    e.target.value = "";
-    if (!archivo) return;
-
+  const procesarArchivo = async (archivo: File) => {
     setError("");
 
     // Solo aceptamos imágenes (el accept del input ya filtra, pero
@@ -85,6 +77,9 @@ export function PetPhotoUploader({ mascotaId, fotoActual, nombreMascota, onFotoG
       setProcesando(false);
     }
   };
+
+  // Cámara y galería: dos caminos para la misma foto (ver el hook)
+  const captura = useCapturaImagen(procesarArchivo);
 
   /** guardarFoto: confirma la vista previa y sube la imagen comprimida */
   const guardarFoto = async () => {
@@ -123,25 +118,47 @@ export function PetPhotoUploader({ mascotaId, fotoActual, nombreMascota, onFotoG
           </div>
         )}
 
-        {/* Botón flotante de cámara sobre la esquina del avatar */}
+        {/* DOS botones flotantes sobre el avatar, uno por cada camino:
+            - Derecha (azul): abre la CÁMARA directo — un toque y listo.
+            - Izquierda (blanco): abre la galería o el explorador.
+            Van en esquinas opuestas para que el dedo no se equivoque. */}
         <button
           type="button"
-          onClick={() => inputArchivoRef.current?.click()}
+          onClick={captura.abrirCamara}
           disabled={procesando}
-          aria-label="Cambiar foto"
+          aria-label="Tomar foto con la cámara"
+          title="Tomar foto"
           className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-white shadow-md transition-colors hover:bg-blue-700 disabled:opacity-60"
         >
           {procesando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
         </button>
 
-        {/* Input real, oculto. accept="image/*" SIN el atributo capture:
-            así el celular ofrece elegir entre CÁMARA o GALERÍA, y la
-            PC abre el explorador de archivos. */}
+        <button
+          type="button"
+          onClick={captura.abrirGaleria}
+          disabled={procesando}
+          aria-label="Elegir foto de la galería"
+          title="Elegir de la galería"
+          className="absolute -bottom-1 -left-1 flex h-8 w-8 items-center justify-center rounded-full border bg-white text-slate-600 shadow-md transition-colors hover:bg-slate-100 disabled:opacity-60"
+        >
+          <ImageIcon className="h-4 w-4" />
+        </button>
+
+        {/* Los dos inputs reales, ocultos. El primero lleva `capture`,
+            que hace que el celular abra la cámara SIN menú intermedio. */}
         <input
-          ref={inputArchivoRef}
+          ref={captura.refCamara}
           type="file"
           accept="image/*"
-          onChange={manejarSeleccion}
+          capture="environment"
+          onChange={captura.manejarCambio}
+          className="hidden"
+        />
+        <input
+          ref={captura.refGaleria}
+          type="file"
+          accept="image/*"
+          onChange={captura.manejarCambio}
           className="hidden"
         />
       </div>

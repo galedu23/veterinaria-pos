@@ -52,7 +52,8 @@ formularios con listas desplegables.
 ### `image-uploader.tsx`
 Subidor de imágenes **genérico y controlado**: comprime a WebP y **entrega** el
 resultado al formulario padre (no guarda nada por sí mismo). Lo usan el
-formulario de producto y el logo de configuración.
+formulario de producto y el logo de configuración. Ofrece **dos botones**:
+"Tomar foto" (abre la cámara) y "Elegir archivo".
 
 ```tsx
 <ImageUploader
@@ -95,6 +96,26 @@ La lógica del carrito (agregar, cambiar cantidad, quitar, limpiar, total).
 **Compartida entre el POS (`/ventas`) y las Compras (`/compras`)** — por eso el
 `precioUnitario` es un parámetro (venta usa precio de venta, compra usa precio de
 compra). No duplica código entre los dos módulos.
+
+### `use-captura-imagen.ts`
+Da **dos caminos para la misma foto**: la cámara del dispositivo o un archivo
+existente. Administra dos `<input type="file">` ocultos y devuelve sus refs más
+las funciones para abrirlos.
+
+```tsx
+const captura = useCapturaImagen(procesarArchivo);
+// <Button onClick={captura.abrirCamara}>Tomar foto</Button>
+// <Button onClick={captura.abrirGaleria}>Elegir archivo</Button>
+```
+
+> **Por qué dos inputs:** uno lleva el atributo `capture="environment"`, que
+> hace que el **celular abra la cámara de inmediato**, sin el menú intermedio de
+> "¿Cámara o Galería?". El otro va sin `capture` para elegir una foto existente.
+> En computadora el navegador ignora `capture` y ambos abren el explorador —
+> por eso el botón se rotula "Tomar foto" y no "Cámara".
+
+Lo usan `pet-photo-uploader.tsx` (dos botones flotantes sobre el avatar) e
+`image-uploader.tsx` (dos botones en el formulario).
 
 ### `use-pago.ts`
 Toda la **aritmética del cobro** del punto de venta: método elegido, montos del
