@@ -22,6 +22,7 @@ const CONFIG_POR_DEFECTO: ConfiguracionClinica = {
   nombre: "VetGram",
   direccion: "",
   telefono: "",
+  ciudad: "Tuxtla Gutiérrez, Chiapas",
   mensajeDespedida: "¡Gracias por su compra!",
   logoUrl: "", // sin logo hasta que el admin lo suba
 };

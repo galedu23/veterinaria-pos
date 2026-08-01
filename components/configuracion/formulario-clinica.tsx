@@ -106,6 +106,16 @@ export function FormularioClinica() {
             </div>
 
             <div className="space-y-1.5">
+              <Label htmlFor="ciudadClinica">Ciudad y estado</Label>
+              <Input id="ciudadClinica" value={config.ciudad}
+                onChange={(e) => actualizarCampo("ciudad", e.target.value)}
+                placeholder="Tuxtla Gutiérrez, Chiapas" />
+              <p className="text-xs text-muted-foreground">
+                Encabeza los documentos legales: &quot;{config.ciudad || "Ciudad"}, a 1 de agosto de 2026&quot;.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
               <Label htmlFor="mensaje">Mensaje de despedida del ticket</Label>
               <Input id="mensaje" value={config.mensajeDespedida}
                 onChange={(e) => actualizarCampo("mensajeDespedida", e.target.value)}

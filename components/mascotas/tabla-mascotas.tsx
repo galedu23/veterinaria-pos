@@ -13,7 +13,7 @@
 // ============================================================
 
 import Link from "next/link";
-import { Pencil, Loader2, FileText } from "lucide-react";
+import { Pencil, Loader2, FileText, PawPrint } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -66,9 +66,25 @@ export function TablaMascotas({ mascotas, cargando, onEditar }: Props) {
           {mascotas.map((m) => (
             <TableRow key={m.id}>
               <TableCell>
-                {/* El nombre lleva al expediente clínico completo */}
-                <Link href={`/mascotas/${m.id}`} className="font-medium text-blue-700 hover:underline">
-                  {m.nombre}
+                {/* Foto + nombre: reconocer al animal de un vistazo es más
+                    rápido que leer nombres repetidos. Todo lleva al expediente. */}
+                <Link href={`/mascotas/${m.id}`} className="group flex items-center gap-2">
+                  {m.fotoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- dataURL local (WebP)
+                    <img
+                      src={m.fotoUrl}
+                      alt=""
+                      className="h-10 w-10 shrink-0 rounded-full border object-cover"
+                    />
+                  ) : (
+                    // Sin foto: huella de respaldo, para no desalinear las filas
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100">
+                      <PawPrint className="h-4 w-4 text-blue-600" />
+                    </span>
+                  )}
+                  <span className="truncate font-medium text-blue-700 group-hover:underline">
+                    {m.nombre}
+                  </span>
                 </Link>
               </TableCell>
               <TableCell className="text-sm">{m.nombreDueno}</TableCell>

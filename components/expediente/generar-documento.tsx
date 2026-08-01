@@ -3,23 +3,35 @@
 // ============================================================
 // generar-documento.tsx — DOCUMENTOS LEGALES del expediente.
 //
-// QUÉ: sección del expediente que lista los formatos legales
-//   disponibles (eutanasia, certificado de salud, estética…).
-//   Al elegir uno se abre un modal donde el veterinario:
-//     1. elige quién firma,
-//     2. llena los dos campos libres del formato, y
-//     3. ve la VISTA PREVIA con los datos del paciente ya sustituidos
-//   antes de imprimir o guardar como PDF.
-// PARA QUÉ la vista previa: un documento legal no se imprime a ciegas;
-//   el médico debe leer exactamente lo que va a firmar.
+// QUÉ: sección del expediente que lista los formatos disponibles
+//   (eutanasia, certificado sanitario, estética…). Al elegir uno se
+//   abre un modal donde:
+//     1. Todos los datos llegan YA LLENOS desde el expediente.
+//     2. CUALQUIERA de ellos se puede corregir antes de imprimir,
+//        empezando por la FECHA.
+//     3. Se ve la vista previa exacta del documento.
+//
+// POR QUÉ todo es editable: el sistema anterior imprimía la fecha del
+//   servidor sin poder cambiarla, y la clínica a veces necesita expedir
+//   con otra fecha (reimpresión, documento que se llenó en papel otro
+//   día, corrección de un dato del dueño). Aquí el registro solo
+//   PRELLENA; la última palabra la tiene quien firma.
+//
+// ORGANIZACIÓN DEL FORMULARIO: arriba lo que se cambia a diario
+//   (fecha, médico, motivo, observaciones); los datos del paciente y
+//   del propietario van en una sección desplegable, porque casi
+//   siempre están bien y solo estorbarían.
+//
 // CÓMO SE CONECTA A SUPABASE: lee `plantillas_documento`, `veterinarios`
-//   y la configuración de la clínica. La impresión ocurre en el
-//   navegador (lib/documentos-legales.ts), no en el servidor.
+//   y la configuración. La impresión ocurre en el navegador.
 // ============================================================
 
 import * as React from "react";
-import { FileSignature, Printer, Loader2, Scale } from "lucide-react";
+import {
+  FileSignature, Printer, Loader2, Scale, ChevronDown, CalendarDays,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
@@ -44,22 +56,40 @@ interface Props {
   pesoActual?: number;
 }
 
+/** Campo de texto corto reutilizado en las rejillas del formulario */
+function Campo({
+  etiqueta, valor, onCambio, placeholder,
+}: {
+  etiqueta: string;
+  valor: string;
+  onCambio: (v: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <div className="space-y-1">
+      <Label className="text-xs text-muted-foreground">{etiqueta}</Label>
+      <Input value={valor} onChange={(e) => onCambio(e.target.value)} placeholder={placeholder} />
+    </div>
+  );
+}
+
 export function GenerarDocumento({
   mascota, nombreEspecie, nombreRaza, dueno, pesoActual,
 }: Props) {
-  // ---- Catálogos que necesita el generador ----
+  // ---- Catálogos ----
   const [plantillas, setPlantillas] = React.useState<PlantillaDocumento[]>([]);
   const [veterinarios, setVeterinarios] = React.useState<Veterinario[]>([]);
   const [config, setConfig] = React.useState<ConfiguracionClinica | null>(null);
   const [cargando, setCargando] = React.useState(true);
 
-  // ---- Estado del modal de generación ----
+  // ---- Estado del modal ----
   const [plantillaElegida, setPlantillaElegida] = React.useState<PlantillaDocumento | null>(null);
   const [veterinarioId, setVeterinarioId] = React.useState("");
-  const [motivo, setMotivo] = React.useState("");
-  const [observaciones, setObservaciones] = React.useState("");
+  // TODOS los datos del documento, editables
+  const [datos, setDatos] = React.useState<DatosDocumento | null>(null);
+  // La sección de paciente/propietario arranca cerrada (suele estar bien)
+  const [datosAbiertos, setDatosAbiertos] = React.useState(false);
 
-  // Carga inicial: formatos, médicos activos y datos de la clínica
   React.useEffect(() => {
     (async () => {
       const [pls, vets, cfg] = await Promise.all([
@@ -74,20 +104,16 @@ export function GenerarDocumento({
     })();
   }, []);
 
-  /** abrirGenerador: prepara el modal con el formato elegido */
-  const abrirGenerador = (plantilla: PlantillaDocumento) => {
-    setPlantillaElegida(plantilla);
-    setMotivo("");
-    setObservaciones("");
-  };
-
   /**
-   * datos: arma el paquete de información del paciente que sustituirá
-   * los marcadores. Se recalcula al cambiar médico o campos libres.
+   * abrirGenerador: prepara el modal PRELLENANDO todo con los datos del
+   * expediente. A partir de aquí el usuario puede corregir lo que sea.
    */
-  const datos: DatosDocumento = React.useMemo(() => {
+  const abrirGenerador = (plantilla: PlantillaDocumento) => {
     const vet = veterinarios.find((v) => v.id === veterinarioId);
-    return {
+    setDatos({
+      // Por defecto hoy, pero es un campo de fecha que se puede cambiar
+      fecha: new Date().toISOString().slice(0, 10),
+      lugar: config?.ciudad ?? "",
       mascota: mascota.nombre,
       especie: nombreEspecie,
       raza: nombreRaza,
@@ -97,20 +123,41 @@ export function GenerarDocumento({
       color: mascota.color ?? "",
       dueno: dueno ? `${dueno.nombre} ${dueno.apellidos}` : "",
       telefonoDueno: dueno?.telefono ?? "",
+      direccionDueno: dueno?.direccion ?? "",
+      colonia: "",
+      localidad: "",
+      municipio: "",
+      origen: "",
+      destino: "",
       veterinario: vet?.nombre ?? "",
       cedula: vet?.cedulaProfesional ?? "",
       especialidad: vet?.especialidad ?? "",
-      motivo,
-      observaciones,
-    };
-  }, [
-    veterinarios, veterinarioId, mascota, nombreEspecie, nombreRaza,
-    dueno, pesoActual, motivo, observaciones,
-  ]);
+      motivo: "",
+      observaciones: "",
+    });
+    setDatosAbiertos(false);
+    setPlantillaElegida(plantilla);
+  };
 
-  /** imprimir: manda el documento ya relleno al diálogo de impresión */
-  const imprimir = () => {
-    if (plantillaElegida) imprimirDocumento(plantillaElegida, datos, config);
+  /** editar: cambia UN campo del documento */
+  const editar = (campo: keyof DatosDocumento, valor: string) =>
+    setDatos((d) => (d ? { ...d, [campo]: valor } : d));
+
+  /**
+   * cambiarVeterinario: al elegir otro médico se actualizan su nombre,
+   * cédula y especialidad dentro del documento.
+   */
+  const cambiarVeterinario = (id: string) => {
+    setVeterinarioId(id);
+    const vet = veterinarios.find((v) => v.id === id);
+    setDatos((d) =>
+      d ? {
+        ...d,
+        veterinario: vet?.nombre ?? "",
+        cedula: vet?.cedulaProfesional ?? "",
+        especialidad: vet?.especialidad ?? "",
+      } : d
+    );
   };
 
   return (
@@ -129,7 +176,6 @@ export function GenerarDocumento({
           Formatos legales.
         </p>
       ) : (
-        // Un botón por formato disponible
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {plantillas.map((p) => (
             <button
@@ -149,76 +195,149 @@ export function GenerarDocumento({
         </div>
       )}
 
-      {/* ---------- Modal: llenar campos + vista previa ---------- */}
+      {/* ---------- Modal: editar datos + vista previa ---------- */}
       <Dialog
         open={!!plantillaElegida}
         onOpenChange={(abierto) => !abierto && setPlantillaElegida(null)}
       >
-        <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-3xl">
+        <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-4xl">
           <DialogHeader>
             <DialogTitle>{plantillaElegida?.nombre}</DialogTitle>
             <DialogDescription>
-              Revisa el documento antes de imprimirlo. Los datos del paciente se
-              llenan solos; los campos vacíos salen como línea para llenar a mano.
+              Los datos llegan llenos del expediente. Corrige lo que necesites
+              —incluida la fecha— y revisa la vista previa antes de imprimir.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-3">
-            {/* Médico que firma (solo si el formato lleva su firma) */}
-            {plantillaElegida?.requiereFirmaVeterinario && (
-              <div className="space-y-1">
-                <Label htmlFor="vetFirma">Médico que firma</Label>
-                <SelectNativo id="vetFirma" value={veterinarioId}
-                  onChange={(e) => setVeterinarioId(e.target.value)}>
-                  {veterinarios.length === 0 && <option value="">Sin veterinarios registrados</option>}
-                  {veterinarios.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.nombre} — Céd. {v.cedulaProfesional}
-                    </option>
-                  ))}
-                </SelectNativo>
+          {datos && plantillaElegida && (
+            <div className="space-y-4">
+              {/* ===== Lo que se ajusta en cada documento ===== */}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="space-y-1">
+                  <Label htmlFor="fechaDoc" className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <CalendarDays className="h-3 w-3" /> Fecha del documento
+                  </Label>
+                  <Input id="fechaDoc" type="date" value={datos.fecha}
+                    onChange={(e) => editar("fecha", e.target.value)} />
+                </div>
+                <Campo etiqueta="Lugar" valor={datos.lugar}
+                  onCambio={(v) => editar("lugar", v)}
+                  placeholder="Tuxtla Gutiérrez, Chiapas" />
+                {plantillaElegida.requiereFirmaVeterinario && (
+                  <div className="space-y-1">
+                    <Label htmlFor="vetFirma" className="text-xs text-muted-foreground">
+                      Médico que firma
+                    </Label>
+                    <SelectNativo id="vetFirma" value={veterinarioId}
+                      onChange={(e) => cambiarVeterinario(e.target.value)}>
+                      {veterinarios.length === 0 && (
+                        <option value="">Sin veterinarios registrados</option>
+                      )}
+                      {veterinarios.map((v) => (
+                        <option key={v.id} value={v.id}>
+                          {v.nombre} — Céd. {v.cedulaProfesional}
+                        </option>
+                      ))}
+                    </SelectNativo>
+                  </div>
+                )}
               </div>
-            )}
 
-            {/* Los dos campos libres del formato */}
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="space-y-1">
-                <Label htmlFor="motivoDoc">Motivo / procedimiento / hallazgos</Label>
-                <textarea id="motivoDoc" rows={3} value={motivo}
-                  onChange={(e) => setMotivo(e.target.value)}
-                  placeholder="Se sustituye en {{MOTIVO}}"
-                  className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" />
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="space-y-1">
+                  <Label htmlFor="motivoDoc" className="text-xs text-muted-foreground">
+                    Motivo / servicio / diagnóstico
+                  </Label>
+                  <textarea id="motivoDoc" rows={2} value={datos.motivo}
+                    onChange={(e) => editar("motivo", e.target.value)}
+                    placeholder="Se imprime en {{MOTIVO}}"
+                    className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="obsDoc" className="text-xs text-muted-foreground">
+                    Observaciones / indicaciones
+                  </Label>
+                  <textarea id="obsDoc" rows={2} value={datos.observaciones}
+                    onChange={(e) => editar("observaciones", e.target.value)}
+                    placeholder="Se imprime en {{OBSERVACIONES}}"
+                    className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" />
+                </div>
               </div>
-              <div className="space-y-1">
-                <Label htmlFor="obsDoc">Observaciones / indicaciones</Label>
-                <textarea id="obsDoc" rows={3} value={observaciones}
-                  onChange={(e) => setObservaciones(e.target.value)}
-                  placeholder="Se sustituye en {{OBSERVACIONES}}"
-                  className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" />
-              </div>
-            </div>
 
-            {/* VISTA PREVIA: el texto real que se imprimirá.
-                whitespace-pre-wrap conserva los saltos de línea. */}
-            {plantillaElegida && (
+              {/* ===== Datos prellenados: se abren solo si hay que corregir ===== */}
+              <div className="rounded-lg border">
+                <button
+                  type="button"
+                  onClick={() => setDatosAbiertos(!datosAbiertos)}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-medium transition-colors hover:bg-accent"
+                >
+                  <span className="flex-1">
+                    Datos del paciente y del propietario
+                    <span className="ml-2 font-normal text-muted-foreground">
+                      (llenados desde el expediente)
+                    </span>
+                  </span>
+                  <ChevronDown className={`h-4 w-4 transition-transform ${datosAbiertos ? "rotate-180" : ""}`} />
+                </button>
+
+                {datosAbiertos && (
+                  <div className="space-y-3 border-t p-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Paciente
+                    </p>
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                      <Campo etiqueta="Nombre" valor={datos.mascota} onCambio={(v) => editar("mascota", v)} />
+                      <Campo etiqueta="Especie" valor={datos.especie} onCambio={(v) => editar("especie", v)} />
+                      <Campo etiqueta="Raza" valor={datos.raza} onCambio={(v) => editar("raza", v)} />
+                      <Campo etiqueta="Sexo" valor={datos.sexo} onCambio={(v) => editar("sexo", v)} />
+                      <Campo etiqueta="Edad" valor={datos.edad} onCambio={(v) => editar("edad", v)} />
+                      <Campo etiqueta="Color" valor={datos.color} onCambio={(v) => editar("color", v)} />
+                      <Campo etiqueta="Peso" valor={datos.peso} onCambio={(v) => editar("peso", v)} />
+                    </div>
+
+                    <p className="pt-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Propietario
+                    </p>
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                      <Campo etiqueta="Nombre" valor={datos.dueno} onCambio={(v) => editar("dueno", v)} />
+                      <Campo etiqueta="Celular" valor={datos.telefonoDueno} onCambio={(v) => editar("telefonoDueno", v)} />
+                      <Campo etiqueta="Calle y número" valor={datos.direccionDueno} onCambio={(v) => editar("direccionDueno", v)} />
+                      <Campo etiqueta="Colonia" valor={datos.colonia} onCambio={(v) => editar("colonia", v)} />
+                      <Campo etiqueta="Localidad" valor={datos.localidad} onCambio={(v) => editar("localidad", v)} />
+                      <Campo etiqueta="Municipio" valor={datos.municipio} onCambio={(v) => editar("municipio", v)} />
+                    </div>
+
+                    <p className="pt-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Traslado (solo certificados de viaje)
+                    </p>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <Campo etiqueta="Dirección de origen" valor={datos.origen} onCambio={(v) => editar("origen", v)} />
+                      <Campo etiqueta="Dirección destino" valor={datos.destino} onCambio={(v) => editar("destino", v)} />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* ===== Vista previa: el texto exacto que se imprimirá ===== */}
               <div className="space-y-1">
-                <Label>Vista previa</Label>
+                <Label className="text-xs text-muted-foreground">Vista previa</Label>
                 <div className="max-h-72 overflow-y-auto whitespace-pre-wrap rounded-md border bg-white p-4 text-xs leading-relaxed text-slate-800">
                   {rellenarPlantilla(plantillaElegida.contenido, datos, config)}
                 </div>
               </div>
-            )}
 
-            <div className="flex flex-col-reverse gap-2 sm:flex-row">
-              <Button variant="outline" className="flex-1"
-                onClick={() => setPlantillaElegida(null)}>
-                Cerrar
-              </Button>
-              <Button className="flex-1" onClick={imprimir}>
-                <Printer /> Imprimir / PDF
-              </Button>
+              <div className="flex flex-col-reverse gap-2 sm:flex-row">
+                <Button variant="outline" className="flex-1"
+                  onClick={() => setPlantillaElegida(null)}>
+                  Cerrar
+                </Button>
+                <Button className="flex-1"
+                  onClick={() => imprimirDocumento(plantillaElegida, datos, config)}>
+                  <Printer /> Imprimir / PDF
+                </Button>
+              </div>
             </div>
-          </div>
+          )}
         </DialogContent>
       </Dialog>
     </section>

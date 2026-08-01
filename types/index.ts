@@ -323,6 +323,9 @@ export interface ConfiguracionClinica {
   nombre: string;
   direccion: string;
   telefono: string;
+  /** Ciudad y estado: encabeza los documentos legales
+   *  ("Tuxtla Gutiérrez, Chiapas, a 1 de agosto de 2026") */
+  ciudad: string;
   mensajeDespedida: string;
   /** Logotipo comprimido (WebP dataURL); "" = sin logo. Aparece en tickets y recetas */
   logoUrl: string;

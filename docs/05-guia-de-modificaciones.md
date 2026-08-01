@@ -168,7 +168,12 @@ Solo necesitas código en dos casos:
   1. Añade el campo a `DatosDocumento` en `lib/documentos-legales.ts`.
   2. Agrégalo al array `MARCADORES` del mismo archivo (así aparece como botón).
   3. Súmalo a la tabla `valores` dentro de `rellenarPlantilla()`.
-  4. Llénalo en `components/expediente/generar-documento.tsx` (objeto `datos`).
+  4. Llénalo en `components/expediente/generar-documento.tsx`: en
+     `abrirGenerador()` (valor inicial) y agrega un `<Campo>` para editarlo.
+- **Cambiar el formato de la fecha impresa**: función `fechaLarga()` en
+  `lib/documentos-legales.ts` (hoy imprime "1 de agosto de 2026").
+- **Cambiar la ciudad predeterminada**: se toma de Configuración →
+  "Ciudad y estado", y se puede sobrescribir en cada documento.
 - **Cambiar el diseño impreso** (membrete, márgenes, firmas): la función
   `imprimirDocumento()` de `lib/documentos-legales.ts`, en el bloque `<style>`.
 

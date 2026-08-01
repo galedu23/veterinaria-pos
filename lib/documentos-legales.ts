@@ -12,7 +12,6 @@
 //   lo llama. Es una función pura + una de impresión.
 // ============================================================
 
-import { formatoFecha } from "@/lib/utils";
 import type { PlantillaDocumento, ConfiguracionClinica } from "@/types";
 
 /**
@@ -21,6 +20,16 @@ import type { PlantillaDocumento, ConfiguracionClinica } from "@/types";
  * aparezca en la ayuda del editor.
  */
 export interface DatosDocumento {
+  /**
+   * Fecha del documento en ISO (YYYY-MM-DD). Es EDITABLE: a veces hay
+   * que expedir un certificado con fecha distinta a la de hoy (se
+   * reimprime, se emitió en papel otro día, etc.). El sistema anterior
+   * no lo permitía y era una molestia constante.
+   */
+  fecha: string;
+  /** Ciudad y estado que encabezan el documento */
+  lugar: string;
+  // --- Paciente ---
   mascota: string;
   especie: string;
   raza: string;
@@ -28,15 +37,43 @@ export interface DatosDocumento {
   edad: string;
   peso: string;
   color: string;
+  // --- Propietario ---
   dueno: string;
   telefonoDueno: string;
+  direccionDueno: string;
+  colonia: string;
+  localidad: string;
+  municipio: string;
+  // --- Médico que firma ---
   veterinario: string;
   cedula: string;
   especialidad: string;
-  /** Campo libre que captura el veterinario al generar (motivo, hallazgos…) */
+  // --- Campos libres del formato ---
+  /** Motivo, hallazgos, diagnóstico o servicio solicitado */
   motivo: string;
-  /** Segundo campo libre (destino del cuerpo, esquema de vacunas…) */
+  /** Observaciones, indicaciones, destino del cuerpo, esquema de vacunas… */
   observaciones: string;
+  /** Solo para certificados de traslado: de dónde y a dónde viaja */
+  origen: string;
+  destino: string;
+}
+
+/**
+ * fechaLarga: convierte "2026-08-01" en "1 de agosto de 2026".
+ * POR QUÉ propia y no formatoFecha(): los documentos legales se
+ * redactan con el mes en letra y completo. (El sistema anterior lo
+ * imprimía en inglés — "1 de Aug de 2026" — por usar el formato
+ * predeterminado del servidor.)
+ */
+function fechaLarga(iso: string): string {
+  // Se parte la fecha a mano para evitar el corrimiento de zona horaria
+  // que provoca new Date("2026-08-01") al interpretarla como UTC.
+  const [anio, mes, dia] = iso.split("-").map(Number);
+  const meses = [
+    "enero", "febrero", "marzo", "abril", "mayo", "junio",
+    "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+  ];
+  return `${dia} de ${meses[mes - 1]} de ${anio}`;
 }
 
 /**
@@ -44,6 +81,8 @@ export interface DatosDocumento {
  * en el editor de plantillas para que quien redacta sepa qué puede usar.
  */
 export const MARCADORES: Array<{ etiqueta: string; descripcion: string }> = [
+  { etiqueta: "{{FECHA}}", descripcion: "Fecha del documento, en letra y EDITABLE" },
+  { etiqueta: "{{LUGAR}}", descripcion: "Ciudad y estado (Configuración)" },
   { etiqueta: "{{MASCOTA}}", descripcion: "Nombre del paciente" },
   { etiqueta: "{{ESPECIE}}", descripcion: "Perro, Gato, Ave…" },
   { etiqueta: "{{RAZA}}", descripcion: "Raza del paciente" },
@@ -52,15 +91,20 @@ export const MARCADORES: Array<{ etiqueta: string; descripcion: string }> = [
   { etiqueta: "{{PESO}}", descripcion: "Peso de la última consulta" },
   { etiqueta: "{{COLOR}}", descripcion: "Color y señas particulares" },
   { etiqueta: "{{DUENO}}", descripcion: "Nombre completo del propietario" },
-  { etiqueta: "{{TELEFONO_DUENO}}", descripcion: "Teléfono del propietario" },
+  { etiqueta: "{{TELEFONO_DUENO}}", descripcion: "Celular del propietario" },
+  { etiqueta: "{{DIRECCION_DUENO}}", descripcion: "Calle y número del propietario" },
+  { etiqueta: "{{COLONIA}}", descripcion: "Colonia o fraccionamiento" },
+  { etiqueta: "{{LOCALIDAD}}", descripcion: "Localidad" },
+  { etiqueta: "{{MUNICIPIO}}", descripcion: "Municipio" },
+  { etiqueta: "{{ORIGEN}}", descripcion: "Dirección de origen (certificados de traslado)" },
+  { etiqueta: "{{DESTINO}}", descripcion: "Dirección destino (certificados de traslado)" },
   { etiqueta: "{{VETERINARIO}}", descripcion: "Médico que firma" },
   { etiqueta: "{{CEDULA}}", descripcion: "Cédula profesional del médico" },
   { etiqueta: "{{ESPECIALIDAD}}", descripcion: "Especialidad del médico" },
   { etiqueta: "{{CLINICA}}", descripcion: "Nombre de la clínica (Configuración)" },
   { etiqueta: "{{DIRECCION_CLINICA}}", descripcion: "Dirección de la clínica" },
   { etiqueta: "{{TELEFONO_CLINICA}}", descripcion: "Teléfono de la clínica" },
-  { etiqueta: "{{FECHA}}", descripcion: "Fecha de expedición (hoy)" },
-  { etiqueta: "{{MOTIVO}}", descripcion: "Campo libre 1: motivo, hallazgos o procedimiento" },
+  { etiqueta: "{{MOTIVO}}", descripcion: "Campo libre 1: motivo, servicio, diagnóstico" },
   { etiqueta: "{{OBSERVACIONES}}", descripcion: "Campo libre 2: observaciones e indicaciones" },
 ];
 
@@ -88,6 +132,9 @@ export function rellenarPlantilla(
 ): string {
   // Tabla marcador -> valor. El orden no importa: se reemplaza por nombre.
   const valores: Record<string, string> = {
+    // La fecha viene de `datos`, NO del reloj: el usuario puede cambiarla
+    FECHA: fechaLarga(datos.fecha),
+    LUGAR: datos.lugar,
     MASCOTA: datos.mascota,
     ESPECIE: datos.especie,
     RAZA: datos.raza,
@@ -97,13 +144,18 @@ export function rellenarPlantilla(
     COLOR: datos.color,
     DUENO: datos.dueno,
     TELEFONO_DUENO: datos.telefonoDueno,
+    DIRECCION_DUENO: datos.direccionDueno,
+    COLONIA: datos.colonia,
+    LOCALIDAD: datos.localidad,
+    MUNICIPIO: datos.municipio,
+    ORIGEN: datos.origen,
+    DESTINO: datos.destino,
     VETERINARIO: datos.veterinario,
     CEDULA: datos.cedula,
     ESPECIALIDAD: datos.especialidad,
     CLINICA: config?.nombre ?? "",
     DIRECCION_CLINICA: config?.direccion ?? "",
     TELEFONO_CLINICA: config?.telefono ?? "",
-    FECHA: formatoFecha(new Date().toISOString()),
     MOTIVO: datos.motivo,
     OBSERVACIONES: datos.observaciones,
   };
@@ -186,7 +238,7 @@ export function imprimirDocumento(
 
       ${firmas.length > 0 ? `<div class="firmas">${firmas.join("")}</div>` : ""}
 
-      <div class="pie">Documento expedido por ${escaparHtml(config?.nombre || "la clínica")} · ${formatoFecha(new Date().toISOString())}</div>
+      <div class="pie">Documento expedido por ${escaparHtml(config?.nombre || "la clínica")} · ${escaparHtml(fechaLarga(datos.fecha))}</div>
     </body></html>`;
 
   const ventana = window.open("", "_blank", "width=900,height=700");

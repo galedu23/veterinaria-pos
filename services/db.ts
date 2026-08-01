@@ -147,107 +147,106 @@ const veterinarios: Veterinario[] = [
 const plantillas: PlantillaDocumento[] = [
   {
     id: "pl-1",
-    nombre: "Consentimiento Informado para Eutanasia",
+    nombre: "Autorización de Eutanasia",
     descripcion: "Autorización del propietario para el procedimiento de eutanasia humanitaria.",
     fundamentoLegal: "NOM-033-SAG/ZOO-2014 · Ley Federal de Sanidad Animal",
     requiereFirmaVeterinario: true,
     requiereFirmaPropietario: true,
     activo: true,
-    contenido: `Por medio del presente documento, yo, {{DUENO}}, en mi carácter de propietario(a) o responsable legal del animal de compañía descrito a continuación, manifiesto lo siguiente:
+    contenido: `{{LUGAR}}, a {{FECHA}}
 
-DATOS DEL PACIENTE
+Por la presente, el/la Señor(a) {{DUENO}}
+Domiciliado(a) en la calle: {{DIRECCION_DUENO}}
+Colonia/Fraccionamiento: {{COLONIA}}
+Localidad: {{LOCALIDAD}}          Municipio de: {{MUNICIPIO}}
+Celular: {{TELEFONO_DUENO}}
+
+DATOS DEL ANIMAL
 Nombre: {{MASCOTA}}
 Especie: {{ESPECIE}}          Raza: {{RAZA}}
-Sexo: {{SEXO}}          Edad: {{EDAD}}          Peso: {{PESO}}
-Color y señas particulares: {{COLOR}}
+Edad: {{EDAD}}          Sexo: {{SEXO}}          Color: {{COLOR}}
 
-MOTIVO MÉDICO QUE JUSTIFICA EL PROCEDIMIENTO
+Autorizo al {{VETERINARIO}}, con cédula profesional {{CEDULA}}, y a quien él designe, a practicar la eutanasia del animal mencionado, de conformidad con la técnica profesional habitual y conforme a la Norma Oficial Mexicana NOM-033-SAG/ZOO-2014, "Métodos para dar muerte a los animales domésticos y silvestres", informándole en este acto que el diagnóstico al que se arribó consiste en:
+
 {{MOTIVO}}
 
-DECLARACIONES
-1. Declaro que he sido informado(a) de forma clara y comprensible por el Médico Veterinario Zootecnista {{VETERINARIO}}, con cédula profesional número {{CEDULA}}, sobre el estado de salud, el pronóstico y las alternativas terapéuticas disponibles para mi animal de compañía.
+lo cual justifica plenamente la medida a adoptarse, siendo humanitaria para la mascota.
 
-2. Entiendo que la eutanasia es un procedimiento IRREVERSIBLE que provoca la muerte del animal, y que se realizará mediante métodos que eviten dolor y sufrimiento innecesarios, conforme a la Norma Oficial Mexicana NOM-033-SAG/ZOO-2014, "Métodos para dar muerte a los animales domésticos y silvestres".
+El firmante declara bajo protesta de decir verdad que el animal a sacrificar no ha mordido a persona alguna en un lapso no menor a los diez días precedentes a la firma del presente, haciéndose de su conocimiento que en caso de falsedad u ocultamiento de información incurre en responsabilidad civil.
 
-3. Manifiesto que esta decisión la tomo de manera libre, voluntaria y sin coacción alguna, y que tuve oportunidad de resolver todas mis dudas antes de firmar.
+Manifiesta asimismo que ha sido informado(a) del carácter IRREVERSIBLE del procedimiento y que la decisión se toma de manera libre y voluntaria.
 
-4. Declaro bajo protesta de decir verdad ser el propietario legítimo o el responsable autorizado del animal, y libero al Médico Veterinario y a esta clínica de cualquier responsabilidad derivada de la falsedad de esta declaración.
+Certifica con su firma que ha leído y comprendido la presente autorización, otorgando su consentimiento.
 
-5. Autorizo expresamente que el procedimiento se realice en la fecha y hora acordadas.
-
-DESTINO DEL CUERPO Y OBSERVACIONES
-{{OBSERVACIONES}}
-
-Fecha de expedición: {{FECHA}}`,
+{{OBSERVACIONES}}`,
   },
   {
     id: "pl-2",
-    nombre: "Certificado de Salud Animal",
-    descripcion: "Hace constar el estado clínico del paciente. Para viajes internacionales se requiere además el certificado zoosanitario de SENASICA.",
+    nombre: "Certificado Veterinario Sanitario",
+    descripcion: "Hace constar el estado de salud del paciente para traslado. Para viajes internacionales se requiere además el certificado zoosanitario de SENASICA.",
     fundamentoLegal: "Ley Federal de Sanidad Animal · NOM-011-SSA2-2011 (rabia)",
     requiereFirmaVeterinario: true,
     requiereFirmaPropietario: false,
     activo: true,
-    contenido: `El que suscribe, Médico Veterinario Zootecnista {{VETERINARIO}}, con cédula profesional número {{CEDULA}}, HACE CONSTAR que examinó clínicamente al animal de compañía cuyos datos se describen a continuación:
+    contenido: `{{LUGAR}}, a {{FECHA}}
 
-DATOS DEL PACIENTE
+Inspección Clínica
+
 Nombre: {{MASCOTA}}
-Especie: {{ESPECIE}}          Raza: {{RAZA}}
-Sexo: {{SEXO}}          Edad: {{EDAD}}          Peso: {{PESO}}
-Color y señas particulares: {{COLOR}}
+Color: {{COLOR}}
+Raza: {{RAZA}}
+Edad: {{EDAD}}
+Sexo: {{SEXO}}
+Especie: {{ESPECIE}}
+Propietario: {{DUENO}}
+Dirección de origen: {{ORIGEN}}
+Dirección destino: {{DESTINO}}
 
-DATOS DEL PROPIETARIO
-Nombre: {{DUENO}}
-Teléfono: {{TELEFONO_DUENO}}
+El que suscribe, {{VETERINARIO}}, con cédula profesional {{CEDULA}}, encuentra en buen estado de salud al ejemplar descrito y CERTIFICA que se le han aplicado las vacunas y el desparasitante externo e interno correspondientes a su edad, que se encuentra libre de gusano barrenador y sin heridas en proceso de cicatrización.
 
-HALLAZGOS DE LA EXPLORACIÓN CLÍNICA
+Asimismo, hace constar que cuenta con esquema de vacunación antirrábica conforme a la Norma Oficial Mexicana NOM-011-SSA2-2011, para la prevención y control de la rabia humana y en los perros y gatos.
+
+En el curso de los últimos meses no ha sido señalado ningún caso de rabia en la región del punto de origen, ni en zona distante a 10 kilómetros.
+
 {{MOTIVO}}
 
-ESQUEMA DE VACUNACIÓN Y DESPARASITACIÓN
 {{OBSERVACIONES}}
 
-HACE CONSTAR QUE:
-Al momento de la exploración, el animal descrito se encuentra clínicamente sano, sin signos aparentes de enfermedad infectocontagiosa, y cuenta con esquema de vacunación antirrábica conforme a la NOM-011-SSA2-2011, para la prevención y control de la rabia humana y en los perros y gatos.
-
-Se extiende el presente certificado a petición del interesado, para los fines legales que al mismo convengan.
-
-VIGENCIA: 15 días naturales contados a partir de la fecha de expedición.
-
-Lugar y fecha: {{DIRECCION_CLINICA}}, a {{FECHA}}`,
+Se extiende el presente certificado a petición del interesado, para los fines legales que al mismo convengan.`,
   },
   {
     id: "pl-3",
-    nombre: "Consentimiento para Servicio de Estética",
+    nombre: "Consentimiento Informado sobre la Estética de su Mascota",
     descripcion: "Autorización y deslinde para el servicio de baño y corte.",
     fundamentoLegal: "Contrato de prestación de servicios · Ley Federal de Protección al Consumidor",
     requiereFirmaVeterinario: false,
     requiereFirmaPropietario: true,
     activo: true,
-    contenido: `Yo, {{DUENO}}, autorizo a {{CLINICA}} a realizar el servicio de estética a mi animal de compañía:
+    contenido: `{{LUGAR}}, a {{FECHA}}
 
-DATOS DEL PACIENTE
-Nombre: {{MASCOTA}}
+DATOS GENERALES DE LA MASCOTA
+
+Por la presente, el/la Señor(a) {{DUENO}}
+Domiciliado(a) en la calle: {{DIRECCION_DUENO}}
+Colonia/Fraccionamiento: {{COLONIA}}
+Localidad: {{LOCALIDAD}}          Municipio de: {{MUNICIPIO}}
+Celular: {{TELEFONO_DUENO}}
+
+Nombre de la mascota: {{MASCOTA}}
 Especie: {{ESPECIE}}          Raza: {{RAZA}}
-Edad: {{EDAD}}          Color y señas particulares: {{COLOR}}
+Edad: {{EDAD}}          Color: {{COLOR}}
 
-SERVICIO SOLICITADO
-{{MOTIVO}}
+SERVICIO SOLICITADO: {{MOTIVO}}
 
-ESTADO DEL PACIENTE AL INGRESO
-{{OBSERVACIONES}}
+Yo, {{DUENO}}, recibo información clara sobre los beneficios del proceso estético que se llevará a cabo en mi mascota, así como sobre los riesgos posibles que existen, tales como: irritaciones y cortadas de la piel por exceso de pelo en malas condiciones o por tratarse de animales muy inquietos, irritación perianal por rascado, irritación de ojos por sensibilidad al shampoo, y convulsión u ojos rojos por estrés.
 
-DECLARACIONES
-1. Manifiesto haber informado al personal sobre el estado de salud de mi mascota, incluyendo padecimientos, alergias, cirugías recientes y su temperamento.
+Comprendo que, si el pelaje presenta nudos severos, puede ser necesario el rasurado completo por el bienestar del animal.
 
-2. Entiendo que durante el manejo estético pueden presentarse incidentes menores (irritación cutánea, pequeños cortes en zonas con nudos o piel flácida, o estrés), aun aplicando las mejores prácticas de manejo.
+Si por alguna razón ajena durante el servicio se presenta una urgencia, autorizo a los médicos veterinarios a realizar los procedimientos necesarios para salvaguardar la vida de mi mascota, comprometiéndome a cubrir su costo.
 
-3. Comprendo que si el pelaje presenta nudos severos puede ser necesario el rasurado completo, por el bienestar del animal.
+Conforme a la información que he leído y comprendido, habiendo podido preguntar y aclarar mis dudas, tomo consciente y libremente la decisión de autorizar el procedimiento, deslindando de responsabilidad a {{CLINICA}} y a los médicos veterinarios que ahí laboran.
 
-4. Autorizo que, en caso de una emergencia médica durante el servicio, se brinde la atención veterinaria inmediata que se considere necesaria, comprometiéndome a cubrir su costo.
-
-5. Acepto que este servicio NO incluye sedación; de requerirse, deberá autorizarse por separado y previa valoración médica.
-
-Fecha: {{FECHA}}`,
+{{OBSERVACIONES}}`,
   },
   {
     id: "pl-4",

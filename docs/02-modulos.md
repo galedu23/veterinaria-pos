@@ -73,6 +73,8 @@ explicado en [01 — Arquitectura](01-arquitectura.md).
   300 ms (espera a que dejes de teclear antes de buscar).
 - **Selects dependientes:** al elegir especie en el formulario, se refiltran
   las razas de esa especie (`cambiarEspecie` reinicia la raza).
+- **Foto en el listado:** la tabla muestra el avatar de cada mascota junto al
+  nombre (huella de respaldo si aún no tiene foto), igual que en Consultas.
 - **Cómo modificar:**
   - *Cambiar los campos que busca*: edita `buscarMascotasAvanzado()` en `services/db.ts`.
   - *Ajustar el tiempo del debounce*: el `setTimeout(..., 300)` en la página.
@@ -232,13 +234,13 @@ Vistas de la actividad de toda la clínica.
   - `components/expediente/generar-documento.tsx` — generación desde el expediente
   - `lib/documentos-legales.ts` — rellena los marcadores e imprime
 - **Qué hace:** administra los documentos legales de la clínica. Incluye 4
-  redacciones base conforme a normativa mexicana:
+  formatos, redactados a partir de los que la clínica ya usaba en papel:
 
   | Documento | Fundamento |
   |---|---|
-  | Consentimiento Informado para Eutanasia | NOM-033-SAG/ZOO-2014 |
-  | Certificado de Salud Animal | NOM-011-SSA2-2011 (rabia) |
-  | Consentimiento para Servicio de Estética | LFPC / contrato de servicios |
+  | Autorización de Eutanasia | NOM-033-SAG/ZOO-2014 |
+  | Certificado Veterinario Sanitario | NOM-011-SSA2-2011 (rabia) |
+  | Consentimiento Informado sobre la Estética de su Mascota | LFPC / contrato de servicios |
   | Consentimiento Quirúrgico y Anestesia | NOM-062-ZOO-1999 |
 
 - **Son totalmente editables**: el texto usa marcadores (`{{MASCOTA}}`,
@@ -246,9 +248,20 @@ Vistas de la actividad de toda la clínica.
   editor los marcadores son **botones que se insertan en la posición del cursor**.
   También se pueden crear formatos nuevos desde cero.
 - **Cómo se genera:** en el expediente de la mascota → sección "Documentos
-  legales" → se elige el formato, quién firma y se llenan dos campos libres
-  (`{{MOTIVO}}` y `{{OBSERVACIONES}}`) → **vista previa** → Imprimir/PDF.
+  legales" → se elige el formato → **todos los datos llegan prellenados** del
+  expediente → se corrige lo que haga falta → **vista previa** → Imprimir/PDF.
   Los marcadores sin dato salen como `__________` para llenar a mano.
+- **TODO es editable antes de imprimir**, incluida la **fecha**:
+
+  | Siempre visible | En sección desplegable |
+  |---|---|
+  | Fecha, lugar, médico que firma, motivo y observaciones | Paciente (nombre, especie, raza, edad, sexo, color, peso), propietario (nombre, celular, calle, colonia, localidad, municipio) y traslado (origen/destino) |
+
+  > **Por qué la fecha es editable:** el sistema anterior imprimía la del
+  > servidor sin poder cambiarla (y en inglés: *"1 de Aug de 2026"*). La clínica
+  > a veces necesita expedir con otra fecha —una reimpresión, un documento que
+  > se llenó en papel otro día—. Aquí el expediente solo **prellena**; la última
+  > palabra la tiene quien firma. El mes se imprime en español y completo.
 - ⚠️ **Aviso**: son redacciones base. Antes de usarlas con clientes reales deben
   ser validadas por el Médico Veterinario responsable y un asesor legal.
 - **Cómo modificar:**
