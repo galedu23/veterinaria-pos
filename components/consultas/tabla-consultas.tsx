@@ -11,15 +11,24 @@
 // ============================================================
 
 import Link from "next/link";
-import { Loader2 } from "lucide-react";
+import { Loader2, PawPrint } from "lucide-react";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { formatoFecha } from "@/lib/utils";
 import type { Consulta } from "@/types";
 
-/** Consulta enriquecida con el nombre del paciente (viene del servicio) */
-export type ConsultaGlobal = Consulta & { nombreMascota: string };
+/**
+ * Consulta enriquecida con los datos del paciente (viene del servicio).
+ * Incluye FOTO y DUEÑO porque en un listado de decenas de consultas el
+ * nombre solo no basta: la foto identifica al animal de un vistazo y el
+ * dueño desambigua cuando varias mascotas se llaman igual ("Lobo").
+ */
+export type ConsultaGlobal = Consulta & {
+  nombreMascota: string;
+  fotoMascota?: string;
+  nombreDueno: string;
+};
 
 interface Props {
   consultas: ConsultaGlobal[];
@@ -61,9 +70,30 @@ export function TablaConsultas({ consultas, nombresVeterinarios, cargando }: Pro
             <TableRow key={c.id}>
               <TableCell className="whitespace-nowrap">{formatoFecha(c.fecha)}</TableCell>
               <TableCell>
-                {/* El paciente enlaza a su expediente completo */}
-                <Link href={`/mascotas/${c.mascotaId}`} className="font-medium text-blue-700 hover:underline">
-                  {c.nombreMascota}
+                {/* Foto + nombre + dueño: identificación rápida del paciente.
+                    Todo el bloque enlaza a su expediente completo. */}
+                <Link href={`/mascotas/${c.mascotaId}`} className="flex items-center gap-2 group">
+                  {c.fotoMascota ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- dataURL local (WebP)
+                    <img
+                      src={c.fotoMascota}
+                      alt=""
+                      className="h-9 w-9 shrink-0 rounded-full border object-cover"
+                    />
+                  ) : (
+                    // Sin foto: marcador con la huella, para no romper la alineación
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100">
+                      <PawPrint className="h-4 w-4 text-blue-600" />
+                    </span>
+                  )}
+                  <span className="min-w-0">
+                    <span className="block truncate font-medium text-blue-700 group-hover:underline">
+                      {c.nombreMascota}
+                    </span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {c.nombreDueno}
+                    </span>
+                  </span>
                 </Link>
               </TableCell>
               <TableCell className="max-w-[200px] truncate">{c.motivo}</TableCell>

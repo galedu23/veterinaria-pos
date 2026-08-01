@@ -1256,13 +1256,23 @@ export async function getVacunasProximas(dias = 30): Promise<Array<Vacuna & { no
  * enriquecidas con el nombre de la mascota para no mostrar ids crudos.
  * TODO Supabase: select con join -> consultas.select("*, mascotas(nombre)")
  */
-export async function getConsultasGlobal(): Promise<Array<Consulta & { nombreMascota: string }>> {
+export async function getConsultasGlobal(): Promise<
+  Array<Consulta & { nombreMascota: string; fotoMascota?: string; nombreDueno: string }>
+> {
   await simularRed();
   return consultas
-    .map((c) => ({
-      ...c,
-      nombreMascota: mascotas.find((m) => m.id === c.mascotaId)?.nombre ?? "—",
-    }))
+    .map((c) => {
+      const mascota = mascotas.find((m) => m.id === c.mascotaId);
+      const dueno = mascota ? clientes.find((cl) => cl.id === mascota.clienteId) : undefined;
+      return {
+        ...c,
+        nombreMascota: mascota?.nombre ?? "—",
+        // La foto permite reconocer al paciente de un vistazo, sin leer
+        fotoMascota: mascota?.fotoUrl,
+        // El dueño desambigua cuando hay mascotas con el mismo nombre
+        nombreDueno: dueno ? `${dueno.nombre} ${dueno.apellidos}` : "—",
+      };
+    })
     .sort((a, b) => b.fecha.localeCompare(a.fecha)); // más recientes primero
 }
 

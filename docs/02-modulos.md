@@ -105,15 +105,24 @@ explicado en [01 — Arquitectura](01-arquitectura.md).
 
 ## Listados globales clínicos
 
-Vistas de **solo lectura** para ver la actividad de toda la clínica. La captura
-siempre se hace desde el expediente de cada mascota.
+Vistas de la actividad de toda la clínica.
 
 | Módulo | Ruta | Archivos |
 |---|---|---|
-| Consultas | `/consultas` | `app/(dashboard)/consultas/page.tsx` + `components/consultas/tabla-consultas.tsx` |
+| Consultas | `/consultas` | `app/(dashboard)/consultas/page.tsx` + `components/consultas/tabla-consultas.tsx` + `selector-paciente.tsx` |
 | Recetas | `/recetas` | `app/(dashboard)/recetas/page.tsx` + `components/recetas/tabla-recetas.tsx` |
 | Vacunas | `/vacunas` | `app/(dashboard)/vacunas/page.tsx` + `components/vacunas/tabla-vacunas.tsx` |
 
+- **Consultas** muestra la **foto del paciente** junto a su nombre y dueño: en
+  un listado largo, reconocer al animal de un vistazo es más rápido que leer
+  nombres repetidos. Si la mascota no tiene foto se pinta una huella para no
+  romper la alineación.
+- **Consultas permite dar de alta** sin salir del listado, en 3 pasos
+  encadenados: `SelectorPaciente` (¿a qué mascota?) →
+  `FormularioConsultaCompleta` → `FormularioReceta` (se abre solo, ligado a la
+  consulta creada). El primer paso conserva la regla de que **toda consulta
+  pertenece a un paciente**; el selector usa el buscador cruzado con fotos.
+  Solo administrador y veterinario ven el botón.
 - **Vacunas** arranca filtrado en "próximas y vencidas" (el uso diario: saber a
   quién llamar), con botón para ver todo. Reutiliza el semáforo `EstadoVacuna`
   del expediente — un solo criterio en toda la app.
